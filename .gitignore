@@ -50,3 +50,16 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Ignore Idea stuff
+.idea/
+
+# Ignore vscode too
+.vscode/
+
+# Same goes for kdevelop
+.kdev4/
+
+# Ignore cmake build directories
+cmake-build-*/
+build/
