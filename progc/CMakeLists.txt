@@ -3,4 +3,4 @@ project(PermisC C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(PermisC main.c)
+add_executable(PermisC src/main.c)
