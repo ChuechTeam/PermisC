@@ -63,3 +63,4 @@ dkms.conf
 # Ignore cmake build directories
 cmake-build-*/
 build/
+build-make/
