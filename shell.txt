@@ -32,7 +32,7 @@ mawk -F ';' '{ conducteur[$6] += $5 } END { for (c in conducteur) print conducte
 
 Vérifier le temps d'exécution de d2 (environ 2 seconde): 
 
-time mawk -F ';' '{ conducteur[$6] += $5 } END { for (c in conducteur) print conducteur[c], c }' data.csv | sort -nr | head -n 10  
+time mawk -F ';' '{ conducteur[$6] += $5 } END { for (c in conducteur) print c, conducteur[c] }' data.csv | sort -k3 -nr | head -n 10  
 
 
 
