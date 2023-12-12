@@ -8,7 +8,6 @@ mawk -F ';' '{if (!seen[$6,$1]++) count[$6]++} END {for (conducteur in count) pr
 
 
 
-
 Traitement d1 data.csv:
 
 awk -F ';' '{if (!seen[$6,$1]++) count[$6]++} END {for (conducteur in count) print conducteur, count[conducteur]}' data.csv | LC_ALL=C sort -k3,3nr -S 50% | head -n 10 > resultat_chauffeur.txt
