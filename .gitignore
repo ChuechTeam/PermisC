@@ -66,4 +66,4 @@ build/
 build-make/
 
 # it's too big (the csv file obviously)
-data.csv
+**/data.csv

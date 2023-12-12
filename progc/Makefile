@@ -37,3 +37,5 @@ build: $(OUT)/PermisC
 run: build
 	@build-make/PermisC
 	
+clean:
+	rm -r $(OUT)
