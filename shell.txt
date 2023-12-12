@@ -8,31 +8,28 @@ mawk -F ';' '{if (!seen[$6,$1]++) count[$6]++} END {for (conducteur in count) pr
 
 
 
-
 Traitement d1 data.csv:
 
-mawk -F ';' '{if (!seen[$6,$1]++) count[$6]++} END {for (conducteur in count) print conducteur, count[conducteur]}' data.csv | LC_ALL=C sort -k3,3nr -S 50% | head -n 10 > resultat_chauffeur.txt
+awk -F ';' '{if (!seen[$6,$1]++) count[$6]++} END {for (conducteur in count) print conducteur, count[conducteur]}' data.csv | LC_ALL=C sort -k3,3nr -S 50% | head -n 10 > resultat_chauffeur.txt
 
 
 
 
 Vérifier le temps d'exécution de d1 (environ 6-7 seconde):
 
-time mawk -F ';' '{if (!seen[$6,$1]++) count[$6]++} END {for (conducteur in count) print conducteur, count[conducteur]}' data.csv | LC_ALL=C sort -k3,3nr -S 50% | head -n 10 > resultat_chauffeur.txt
+time awk -F ';' '{if (!seen[$6,$1]++) count[$6]++} END {for (conducteur in count) print conducteur, count[conducteur]}' data.csv | LC_ALL=C sort -k3,3nr -S 50% | head -n 10 > resultat_chauffeur.txt
 
 
 
 
 Traitement d2 data.csv:
 
-mawk -F ';' '{ conducteur[$6] += $5 } END { for (c in conducteur) print conducteur[c], c }' data.csv | sort -nr | head -n 10  
-
-
+mawk -F ';' '{ conducteur[$6] += $5 } END { for (c in conducteur) print c, conducteur[c] }' data.csv | sort -k3 -nr | head -n 10  
 
 
 Vérifier le temps d'exécution de d2 (environ 2 seconde): 
 
-time mawk -F ';' '{ conducteur[$6] += $5 } END { for (c in conducteur) print conducteur[c], c }' data.csv | sort -nr | head -n 10  
+time mawk -F ';' '{ conducteur[$6] += $5 } END { for (c in conducteur) print c, conducteur[c] }' data.csv | sort -k3 -nr | head -n 10  
 
 
 
