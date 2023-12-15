@@ -1,24 +1,39 @@
 # The makefile for PermisC. Lean and simple!
 
-# Set a default C compiler
+# Set a default C compiler: gcc
 CC := gcc
-CFLAGS := -std=c11 -fPIC -Wall
+# Set the compiler flags:
+# -std=c11: Use the C11 standard
+# -Wall: Enable all warnings (by default there are like nearly none)
+# -Wno-unused-function: Disable warnings for unused functions (that's annoying)
+# -D_POSIX_C_SOURCE=200112L: Enable POSIX functions (for profiling)
+# -g: Enable debug symbols
+CFLAGS := -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g
 
+# Use all CPU cores for parallel compilation
+MAKEFLAGS += '-j'
+
+# The output directory
 OUT:=build-make
 
+# All the source files, without the src folder.
 SRC_FILES:=$(patsubst src/%, %, \
 		     $(wildcard src/**/*.c) $(wildcard src/*.c))
 
+# All the object files, with the output directory.
 OBJ_FILES:=$(addprefix $(OUT)/, $(SRC_FILES:%.c=%.o))
 
+# The full path to all header files
 HEADER_FILES_F:=$(wildcard src/*.h) $(wildcard src/**/*.h)
 
+# Where the data.csv file is, used for running the program.
+FILE=../data.csv
+
+.PHONY: debug
 debug:
 	@echo Objects: $(OBJ_FILES)
 	@echo Src: $(SRC_FILES)
 	@echo Headers: $(HEADER_FILES_F)
-
-all: build
 
 .PHONY: make_build_dir
 make_build_dir:
@@ -35,7 +50,7 @@ $(OUT)/PermisC: $(OBJ_FILES)
 
 build: $(OUT)/PermisC
 run: build
-	@build-make/PermisC
+	@build-make/PermisC $(FILE)
 	
 clean:
 	rm -r $(OUT)
