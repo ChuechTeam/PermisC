@@ -14,9 +14,6 @@ ifeq ($(OPTIMIZE), 1)
 	CFLAGS += -Ofast -flto
 endif
 
-# Use many CPU cores for parallel compilation
-MAKEFLAGS += '-j 4'
-
 # The output directory
 OUT:=build-make
 

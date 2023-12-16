@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-make build && ./build-make/PermisC "$@"
+make -j build && ./build-make/PermisC "$@"

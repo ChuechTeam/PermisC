@@ -31,12 +31,12 @@ bool parseOptions(int argc, char** argv, Options* outOptions, char errMsg[256])
 
         if (arg[0] == '-')
         {
-            if (strcmp(arg, "-T") == 0)
+            if (strcmp(arg, "-t") == 0)
             {
                 if (comptuationAlreadySet(arg, outOptions, errMsg)) { return false; }
                 outOptions->computation = COMPUTATION_T;
             }
-            else if (strcmp(arg, "-S") == 0)
+            else if (strcmp(arg, "-s") == 0)
             {
                 if (comptuationAlreadySet(arg, outOptions, errMsg)) { return false; }
                 outOptions->computation = COMPUTATION_S;
