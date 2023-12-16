@@ -41,7 +41,7 @@ int main(int argv, char** argc)
         return 2;
     }
 
-    RouteStream stream = rsOpen(argc[1]);
+    RouteStream stream = rsOpen(options.file);
 
     char streamErrMsg[ERR_MAX];
     if (!rsCheck(&stream, streamErrMsg))
@@ -76,6 +76,7 @@ int main(int argv, char** argc)
         PROFILER_END();
 
         printf("Conducteurs : %d | Villes : %d\n", avlSize(driversAVL), avlSize(townsAVL));
-        return 0;
     }
+
+    return 0;
 }
