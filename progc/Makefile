@@ -8,10 +8,14 @@ CC := gcc
 # -Wno-unused-function: Disable warnings for unused functions (that's annoying)
 # -D_POSIX_C_SOURCE=200112L: Enable POSIX functions (for profiling)
 # -g: Enable debug symbols
-CFLAGS := -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g
+# -Isrc: Add the src folder to the include path
+CFLAGS := -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc
+ifeq ($(OPTIMIZE), 1)
+	CFLAGS += -Ofast -flto
+endif
 
-# Use all CPU cores for parallel compilation
-MAKEFLAGS += '-j'
+# Use many CPU cores for parallel compilation
+MAKEFLAGS += '-j 4'
 
 # The output directory
 OUT:=build-make
@@ -37,7 +41,7 @@ debug:
 
 .PHONY: make_build_dir
 make_build_dir:
-	@mkdir -p $(OUT)
+	@mkdir -p $(OUT) && mkdir -p $(OUT)/computations
 
 # $< is the first dependency
 $(OUT)/%.o: src/%.c $(HEADER_FILES_F) | make_build_dir
@@ -48,9 +52,10 @@ $(OUT)/PermisC: $(OBJ_FILES)
 	@echo "Linking PermisC..."
 	@$(CC) $(CFLAGS) $^ -o $@
 
+.PHONY: build run clean
 build: $(OUT)/PermisC
 run: build
 	@build-make/PermisC $(FILE)
-	
+
 clean:
 	rm -r $(OUT)

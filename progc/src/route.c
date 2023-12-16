@@ -1,9 +1,9 @@
 #include "route.h"
 
 #include <string.h>
-
-#include "assert.h"
-#include "stdlib.h"
+#include <errno.h>
+#include <assert.h>
+#include <stdlib.h>
 
 // 128 KB
 // After some profiling, it empirically works fast on my computer...
@@ -18,7 +18,6 @@ RouteStream rsOpen(const char* path)
     s.readBufChars = 0;
 
     FILE* file = fopen(path, "rb");
-    // Disable buffered read
     s.file = file;
 
     s.readBuf = malloc(READ_BUFFER_SIZE);
@@ -47,13 +46,14 @@ bool rsCheck(const RouteStream* stream, char errMsg[ERR_MAX])
 {
     if (!stream->file || ferror(stream->file))
     {
-        // TODO: better err msg
-        strncpy(errMsg, "Ca s'est mal passé.", ERR_MAX);
+        char* fileError = strerror(errno);
+        snprintf(errMsg,ERR_MAX, "%s", fileError);
+        errMsg[ERR_MAX-1] = '\0';
         return false;
     }
     else if (!stream->readBuf)
     {
-        strncpy(errMsg, "Pas assez de mémoire pour allouer le buffer de lecture", ERR_MAX);
+        snprintf(errMsg, ERR_MAX, "Pas assez de mémoire pour allouer le buffer de lecture");
         return false;
     }
     {
@@ -73,7 +73,7 @@ bool continueBufferRead(RouteStream* stream)
     // Reset the position cursor.
     stream->readBufPos = 0;
 
-    uint32_t bytesRead = fread(stream->readBuf, 1, READ_BUFFER_SIZE, stream->file);
+    uint32_t bytesRead = (uint32_t) fread(stream->readBuf, 1, READ_BUFFER_SIZE, stream->file);
     if (bytesRead == READ_BUFFER_SIZE)
     {
         // Check if the last line has been truncated, unless we're at the very end.
@@ -160,8 +160,11 @@ uint32_t readUnsignedInt(RouteStream* stream)
     return number;
 }
 
+// Reads the next string in the CSV file from the stream.
+// The semicolon or newline character will be replaced by a null-terminator.
 char* readStr(RouteStream* stream)
 {
+    // Find the length of the string
     char ch = stream->readBuf[stream->readBufPos];
     size_t i = 0;
     while (ch != ';' && ch != '\n')
@@ -170,16 +173,18 @@ char* readStr(RouteStream* stream)
         stream->readBufPos++;
         ch = stream->readBuf[stream->readBufPos];
     }
-    char* str = malloc(i+1);
-    memcpy(str, stream->readBuf + stream->readBufPos - i, i);
-    str[i] = '\0';
 
+    // Mark the end of the string here.
+    char* strStart = stream->readBuf + stream->readBufPos - i;
+    stream->readBuf[stream->readBufPos] = '\0';
+
+    // Skip the semicolon.
     if (ch == ';')
     {
         stream->readBufPos++;
     }
 
-    return str;
+    return strStart;
 }
 
 float readUnsignedFloat(RouteStream* stream)
@@ -202,7 +207,8 @@ float readUnsignedFloat(RouteStream* stream)
             {
                 intPart += digit * multInt;
                 multInt *= 10;
-            } else
+            }
+            else
             {
                 decPart += digit * multDec;
                 multDec *= 10;
@@ -228,9 +234,22 @@ float readUnsignedFloat(RouteStream* stream)
     return number;
 }
 
-bool rsRead(RouteStream* stream, RouteStep* outRouteStep)
+void skipField(RouteStream* stream)
+{
+    while (stream->readBuf[stream->readBufPos] != ';' && stream->readBuf[stream->readBufPos] != '\n')
+    {
+        stream->readBufPos++;
+    }
+    if (stream->readBuf[stream->readBufPos] == ';')
+    {
+        stream->readBufPos++;
+    }
+}
+
+bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRead)
 {
     assert(outRouteStep);
+    assert(stream);
     assert(stream->file);
 
     if (stream->readBufPos == stream->readBufChars - 1 || stream->readBufChars == 0)
@@ -242,14 +261,38 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep)
         }
     }
 
-    outRouteStep->routeId = readUnsignedInt(stream);
-    outRouteStep->stepId = readUnsignedInt(stream);
-    outRouteStep->townA = readStr(stream);
-    outRouteStep->townB = readStr(stream);
-    outRouteStep->distance = readUnsignedFloat(stream);
-    outRouteStep->driverName = readStr(stream);
+    if (fieldsToRead & ROUTE_ID)
+        outRouteStep->routeId = readUnsignedInt(stream);
+    else
+        skipField(stream);
 
-    assert(stream->readBuf[stream->readBufPos] == '\n');
+    if (fieldsToRead & STEP_ID)
+        outRouteStep->stepId = readUnsignedInt(stream);
+    else
+        skipField(stream);
+
+    if (fieldsToRead & TOWN_A)
+        outRouteStep->townA = readStr(stream);
+    else
+        skipField(stream);
+
+    if (fieldsToRead & TOWN_B)
+        outRouteStep->townB = readStr(stream);
+    else
+        skipField(stream);
+
+    if (fieldsToRead & DISTANCE)
+        outRouteStep->distance = readUnsignedFloat(stream);
+    else
+        skipField(stream);
+
+    if (fieldsToRead & DRIVER_NAME)
+        outRouteStep->driverName = readStr(stream);
+    else
+        skipField(stream);
+
+    // Can be replaced by a null character due to readStr
+    assert(stream->readBuf[stream->readBufPos] == '\0' || stream->readBuf[stream->readBufPos] == '\n');
 
     // Advance to the next line
     if (stream->readBufPos != stream->readBufChars - 1)
@@ -260,17 +303,7 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep)
     return true;
 }
 
-void stepFree(RouteStep* step)
+bool rsReadAllButDistance(RouteStream* stream, RouteStep* outRouteStep)
 {
-    if (step)
-    {
-        free(step->townA);
-        step->townA = NULL;
-
-        free(step->townB);
-        step->townB = NULL;
-
-        free(step->driverName);
-        step->driverName = NULL;
-    }
+    return rsRead(stream, outRouteStep, ALL_FIELDS & ~DISTANCE);
 }

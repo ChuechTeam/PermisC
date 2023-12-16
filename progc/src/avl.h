@@ -7,6 +7,8 @@
  * Common functions for AVL trees of any type (string, float, int...)
  */
 
+#include <stdbool.h>
+
 // The common fields to all AVL trees. Must be placed at the very beginning of the struct.
 #define AVL_HEADER(type) struct type *left, *right; int balance;
 
@@ -27,9 +29,9 @@ typedef struct AVL
     // int balance;
 } AVL;
 
-// Returns | 1  when a.value > b
-//         | 0  when a.value = b
-//         | -1 when a.value < b
+// Returns | <= 1  when a.value > b
+//         | 0     when a.value = b
+//         | >= -1 when a.value < b
 typedef int (*AVLCompareValueFunc)(const AVL* a, const void* b);
 
 // Allocates an AVL node with the given value.
@@ -45,15 +47,16 @@ AVL* avlRotateLeft(AVL* a);
 
 AVL* avlRotateRight(AVL* a);
 
-AVL* avlDoubleRotateRight(AVL* arbre);
+AVL* avlDoubleRotateRight(AVL* tree);
 
-AVL* avlDoubleRotateLeft(AVL* arbre);
+AVL* avlDoubleRotateLeft(AVL* tree);
 
-AVL* avlBalance(AVL* arbre);
+AVL* avlBalance(AVL* tree);
 
-AVL* avlInsert(AVL* tree, void* value, AVLCreateFunc create, AVLCompareValueFunc compare, AVL** existingNode);
+AVL* avlInsert(AVL* tree, void* value, AVLCreateFunc create, AVLCompareValueFunc compare, AVL** insertedNode,
+               bool* alreadyPresent);
 
-AVL* avlLookup(AVL* tree, void* value, AVLCompareValueFunc compare);
+AVL* avlLookup(AVL* tree, const void* value, AVLCompareValueFunc compare);
 
 // TODO: Delete functions? Sounds like we don't need those in our programs. Maybe I'm wrong...
 

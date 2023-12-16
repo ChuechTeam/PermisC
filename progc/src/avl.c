@@ -1,5 +1,7 @@
 #include "avl.h"
 
+#include <stdio.h>
+
 #include "stdlib.h"
 #include "assert.h"
 
@@ -62,75 +64,89 @@ AVL* avlRotateRight(AVL* a)
     return b;
 }
 
-AVL* avlDoubleRotateRight(AVL* arbre)
+AVL* avlDoubleRotateRight(AVL* tree)
 {
-    arbre->left = avlRotateLeft(arbre->left);
-    return avlRotateRight(arbre);
+    tree->left = avlRotateLeft(tree->left);
+    return avlRotateRight(tree);
 }
 
-AVL* avlDoubleRotateLeft(AVL* arbre)
+AVL* avlDoubleRotateLeft(AVL* tree)
 {
-    arbre->right = avlRotateRight(arbre->right);
-    return avlRotateLeft(arbre);
+    tree->right = avlRotateRight(tree->right);
+    return avlRotateLeft(tree);
 }
 
-AVL* avlBalance(AVL* arbre)
+AVL* avlBalance(AVL* tree)
 {
-    if (arbre->balance >= 2)
+    if (tree->balance >= 2)
     {
-        if (arbre->right->balance <= -1)
+        if (tree->right->balance <= -1)
         {
-            return avlDoubleRotateLeft(arbre);
+            return avlDoubleRotateLeft(tree);
         }
         else
         {
-            return avlRotateLeft(arbre);
+            return avlRotateLeft(tree);
         }
     }
-    else if (arbre->balance <= -2)
+    else if (tree->balance <= -2)
     {
-        if (arbre->left->balance >= 1)
+        if (tree->left->balance >= 1)
         {
-            return avlDoubleRotateRight(arbre);
+            return avlDoubleRotateRight(tree);
         }
         else
         {
-            return avlRotateRight(arbre);
+            return avlRotateRight(tree);
         }
     }
     else
     {
-        return arbre;
+        return tree;
     }
 }
 
+// I kept the old version of the insert function just for reference.
+/*
 AVL* avlInsertInternal(AVL* tree, void* value, AVLCreateFunc create, const AVLCompareValueFunc compare,
-                       AVL** existingNode, int* h)
+                       AVL** insertedNode, bool* alreadyPresent, int* h)
 {
     assert(h);
 
     if (!tree)
     {
         *h = 1;
-        return create(value);
+        AVL* newNode = create(value);
+        if (insertedNode)
+        {
+            *insertedNode = newNode;
+        }
+        if (alreadyPresent)
+        {
+            *alreadyPresent = false;
+        }
+        return newNode;
     }
 
     int compareResult = compare(tree, value);
     if (compareResult == 0)
     {
-        if (existingNode)
+        if (insertedNode)
         {
-            *existingNode = tree;
+            *insertedNode = tree;
+        }
+        if (alreadyPresent)
+        {
+            *alreadyPresent = true;
         }
     }
     else if (compareResult <= -1) // then parent < child ==> child > parent
     {
-        tree->right = avlInsertInternal(tree->right, value, create, compare, existingNode, h);
+        tree->right = avlInsertInternal(tree->right, value, create, compare, insertedNode, alreadyPresent, h);
     }
     else // then parent > child ==> child < parent
     {
-        assert(compareResult >= 1);
-        tree->left = avlInsertInternal(tree->left, value, create, compare, existingNode, h);
+        tree->left = avlInsertInternal(tree->left, value, create, compare, insertedNode, alreadyPresent, h);
         *h = -*h;
     }
 
@@ -152,33 +168,132 @@ AVL* avlInsertInternal(AVL* tree, void* value, AVLCreateFunc create, const AVLCo
 
     return tree;
 }
+*/
 
+// The iterative version of AVL insert. Performs a bit faster than the recursive one,
+// especially when the element is already in the tree (which is VERY common).
 AVL* avlInsert(AVL* tree, void* value, const AVLCreateFunc create, const AVLCompareValueFunc compare,
-               AVL** existingNode)
+               AVL** insertedNode, bool* alreadyPresent)
 {
-    int h = 0;
-    return avlInsertInternal(tree, value, create, compare, existingNode, &h);
+    struct AVLDiff
+    {
+        AVL* node;
+        int dir; // -1 for left, 1 for right
+    };
+
+    // 2^64 nodes should be enough right?
+    struct AVLDiff stack[64];
+    int depth = 0;
+
+    AVL* subtree = tree;
+    while (true)
+    {
+        if (subtree == NULL)
+        {
+            AVL* newNode = create(value);
+            if (insertedNode)
+            {
+                *insertedNode = newNode;
+            }
+            if (alreadyPresent)
+            {
+                *alreadyPresent = false;
+            }
+            stack[depth] = (struct AVLDiff){newNode, 0};
+
+            break;
+        }
+
+        int compareResult = compare(subtree, value);
+        if (compareResult == 0)
+        {
+            if (insertedNode)
+            {
+                *insertedNode = subtree;
+            }
+            if (alreadyPresent)
+            {
+                *alreadyPresent = true;
+            }
+
+            // Return the tree directly, there will be no balancing changes as
+            // we've pretty much inserted nothing.
+            return tree;
+        }
+        else if (compareResult <= -1) // then parent < child ==> child > parent
+        {
+            stack[depth] = (struct AVLDiff){subtree, 1};
+            subtree = subtree->right;
+        }
+        else // then parent > child ==> child < parent
+        {
+            stack[depth] = (struct AVLDiff){subtree, -1};
+            subtree = subtree->left;
+        }
+        depth++;
+        assert(depth != 64);
+    }
+
+    bool noMoreBalanceChanges = false;
+    depth--; // Start with the parent of the last inserted node.
+    while (depth >= 0)
+    {
+        AVL* me = stack[depth].node;
+        int dir = stack[depth].dir;
+        AVL* child = stack[depth + 1].node;
+
+        // Step 1: Put the child in the right place.
+        if (dir == 1)
+        {
+            me->right = child;
+        }
+        else
+        {
+            me->left = child;
+        }
+
+        // Step 2: Are we done balancing the tree? If so, let's take a break.
+        if (noMoreBalanceChanges)
+        {
+            break;
+        }
+
+        // Step 2: Oh wow I got a new child! Adjust the balance accordingly.
+        me->balance += dir;
+        me = avlBalance(me); // This might require a change to the parent node we're going to do later.
+        stack[depth].node = me;
+
+        // If the balance becomes 0, then we have made both subtrees the same height,
+        // so the tree didn't become taller.
+        if (me->balance == 0)
+        {
+            noMoreBalanceChanges = true;
+        }
+
+        depth--;
+    }
+
+    return stack[0].node;
 }
 
-AVL* avlLookup(AVL* tree, void* value, const AVLCompareValueFunc compare)
+AVL* avlLookup(AVL* tree, const void* value, const AVLCompareValueFunc compare)
 {
-    if (!tree)
+    while (tree != NULL)
     {
-        return NULL;
+        int compareResult = compare(tree, value);
+        if (compareResult == 0)
+        {
+            return tree;
+        }
+        else if (compareResult <= -1) // then tree < value ==> value > tree
+        {
+            tree = tree->right;
+        }
+        else // then tree > value ==> value < tree
+        {
+            tree = tree->left;
+        }
     }
 
-    int compareResult = compare(tree, value);
-    if (compareResult == 0)
-    {
-        return tree;
-    }
-    else if (compareResult <= -1) // then tree < value ==> value > tree
-    {
-        return avlLookup(tree->right, value, compare);
-    }
-    else // then tree > value ==> value < tree
-    {
-        assert(compareResult >= 1);
-        return avlLookup(tree->left, value, compare);
-    }
+    return NULL;
 }

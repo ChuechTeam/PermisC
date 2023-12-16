@@ -8,14 +8,20 @@ add_executable(PermisC
         src/route.c
         src/profile.c
         src/avl.c
-        src/avl.h
         src/string_avl.c
-        src/string_avl.h
+        src/computations/computation_t.c
+        src/computations/computation_s.c
+        src/options.c
 )
+
+target_include_directories(PermisC PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
 
 # Stop Windows from complaining about """unsafe""" functions in stdlib
 if (MSVC)
     target_compile_definitions(PermisC PUBLIC _CRT_SECURE_NO_WARNINGS=1)
     # Can be useful to see what assembly code is generated
     target_compile_options(PermisC PUBLIC /FAs)
-endif()
+    if (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+        target_link_options(PermisC PUBLIC /LTCG)
+    endif ()
+endif ()
