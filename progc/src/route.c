@@ -162,7 +162,7 @@ uint32_t readUnsignedInt(RouteStream* stream)
 
 // Reads the next string in the CSV file from the stream.
 // The semicolon or newline character will be replaced by a null-terminator.
-char* readStr(RouteStream* stream)
+char* readStr(RouteStream* stream, int32_t poolIdx, int32_t* outLen)
 {
     // Find the length of the string
     char ch = stream->readBuf[stream->readBufPos];
@@ -184,7 +184,16 @@ char* readStr(RouteStream* stream)
         stream->readBufPos++;
     }
 
-    return strStart;
+    *outLen = i;
+    if (i < 32)
+    {
+        strncpy(stream->tempStrings[poolIdx], strStart, 33);
+        return stream->tempStrings[poolIdx];
+    }
+    else
+    {
+        return strStart;
+    }
 }
 
 float readUnsignedFloat(RouteStream* stream)
@@ -261,6 +270,8 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
         }
     }
 
+    memset(stream->tempStrings, 0, sizeof(stream->tempStrings));
+
     if (fieldsToRead & ROUTE_ID)
         outRouteStep->routeId = readUnsignedInt(stream);
     else
@@ -272,12 +283,12 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
         skipField(stream);
 
     if (fieldsToRead & TOWN_A)
-        outRouteStep->townA = readStr(stream);
+        outRouteStep->townA = readStr(stream, 0, &outRouteStep->townALen);
     else
         skipField(stream);
 
     if (fieldsToRead & TOWN_B)
-        outRouteStep->townB = readStr(stream);
+        outRouteStep->townB = readStr(stream, 1, &outRouteStep->townBLen);
     else
         skipField(stream);
 
@@ -287,7 +298,7 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
         skipField(stream);
 
     if (fieldsToRead & DRIVER_NAME)
-        outRouteStep->driverName = readStr(stream);
+        outRouteStep->driverName = readStr(stream, 2, &outRouteStep->driverLen);
     else
         skipField(stream);
 

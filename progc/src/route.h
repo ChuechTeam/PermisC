@@ -19,7 +19,10 @@ typedef struct RouteStep
     int stepId;
     char* townA; // Invalidated on the next call to rsRead
     char* townB; // Invalidated on the next call to rsRead
+    int32_t townALen;
     float distance;
+    int32_t townBLen;
+    int32_t driverLen;
     char* driverName; // Invalidated on the next call to rsRead
 } RouteStep;
 
@@ -32,6 +35,8 @@ typedef struct RouteStream
     char* readBuf;
     uint32_t readBufChars;
     uint32_t readBufPos;
+
+    char tempStrings[3][33];
 } RouteStream;
 
 typedef enum

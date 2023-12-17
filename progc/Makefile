@@ -9,7 +9,7 @@ CC ?= gcc
 # -D_POSIX_C_SOURCE=200112L: Enable POSIX functions (for profiling)
 # -g: Enable debug symbols
 # -Isrc: Add the src folder to the include path
-CFLAGS += -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc
+CFLAGS += -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc -mavx -mavx2
 
 # The optimization level, 1 to enable compiler optimizations.
 OPTIMIZE ?= 0

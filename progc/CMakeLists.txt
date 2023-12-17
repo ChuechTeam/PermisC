@@ -25,3 +25,7 @@ if (MSVC)
         target_link_options(PermisC PUBLIC /LTCG)
     endif ()
 endif ()
+
+if (UNIX)
+    target_compile_options(PermisC PUBLIC -mavx -mavx2)
+endif()

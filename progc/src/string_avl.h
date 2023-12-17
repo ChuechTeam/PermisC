@@ -35,7 +35,7 @@ void stringAVLFree(StringAVL* node);
 //     (Can be set to NULL to ignore)
 // The alreadyPresent parameter will be set to true if the value was already present in the tree.
 //     (Can be set to NULL to ignore)
-StringAVL* stringAVLInsert(StringAVL* tree, char* value, void* extraData, StringAVL** insertedNode,
+StringAVL* stringAVLInsert(StringAVL* tree, char* value, int32_t length, void* extraData, StringAVL** insertedNode,
                            bool* alreadyPresent);
 
 // Looks up a node in the tree, matching the given string (value).

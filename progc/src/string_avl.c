@@ -5,15 +5,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "magic_strcmp.h"
 
 /*
  * Functions for interfacing with the generic AVL tree.
  */
 
-typedef struct { char* value; void* extraData; } StringAVLCreateData;
+typedef struct { char* value; void* extraData; int32_t length; } StringAVLCreateData;
 
 int stringAVLCompareG(const AVL* tree, const void* createData)
 {
+    StringAVL* strTree = (StringAVL*)tree;
+    StringAVLCreateData* strCreateData = (StringAVLCreateData*)createData;
+
     char* a = ((StringAVL*)tree)->value;
     char* b = ((StringAVLCreateData*)createData)->value;
 
@@ -24,7 +28,14 @@ int stringAVLCompareG(const AVL* tree, const void* createData)
         return diff;
     }
 
-    return strcmp(a, b);
+    if (strTree->length < 32 && strCreateData->length < 32)
+    {
+        return myVeryCoolStrcmp(a, b);
+    }
+    else
+    {
+        return strcmp(a, b);
+    }
 }
 
 AVL* stringAVLCreateG(void* createData)
@@ -43,7 +54,7 @@ StringAVL* stringAVLCreate(const char* value, void* extraData)
 {
     assert(value);
     size_t len = strlen(value);
-    StringAVL* node = malloc(sizeof(StringAVL) + len + 1);
+    StringAVL* node = calloc(1, sizeof(StringAVL) + (len < 33 ? 33 : len) + 1);
 
     memcpy(node->value, value, len + 1);
     node->length = (uint32_t) len;
@@ -65,9 +76,9 @@ void stringAVLFree(StringAVL* node)
     }
 }
 
-StringAVL* stringAVLInsert(StringAVL* tree, char* value, void* extraData, StringAVL** insertedNode, bool* alreadyPresent)
+StringAVL* stringAVLInsert(StringAVL* tree, char* value, int32_t length, void* extraData, StringAVL** insertedNode, bool* alreadyPresent)
 {
-    StringAVLCreateData createData = { value, extraData };
+    StringAVLCreateData createData = { value, extraData, length };
 
     return (StringAVL*) avlInsert((AVL*)tree, &createData, funcs.create, funcs.compare, (AVL**)insertedNode, alreadyPresent);
 }

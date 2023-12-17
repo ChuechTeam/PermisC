@@ -8,6 +8,7 @@
 #include "string_avl.h"
 #include "options.h"
 #include "computations/computations.h"
+#include "magic_strcmp.h"
 #ifdef WIN32
 #include <windows.h>
 #endif
@@ -65,13 +66,13 @@ int main(int argv, char** argc)
         StringAVL* driversAVL = NULL;
         StringAVL* townsAVL = NULL;
 
-        RouteStep step = {0, 0, NULL, NULL, 0.0f, NULL};
+        RouteStep step;
         PROFILER_START("Read all steps + AVL insertion");
         while (rsRead(&stream, &step, ALL_FIELDS & ~DISTANCE))
         {
-            driversAVL = stringAVLInsert(driversAVL, step.driverName, NULL, NULL, NULL);
-            townsAVL = stringAVLInsert(townsAVL, step.townA, NULL, NULL, NULL);
-            townsAVL = stringAVLInsert(townsAVL, step.townB, NULL, NULL, NULL);
+            driversAVL = stringAVLInsert(driversAVL, step.driverName, step.driverLen, NULL, NULL, NULL);
+            townsAVL = stringAVLInsert(townsAVL, step.townA, step.townALen, NULL, NULL, NULL);
+            townsAVL = stringAVLInsert(townsAVL, step.townB, step.townBLen, NULL, NULL, NULL);
         }
         PROFILER_END();
 
