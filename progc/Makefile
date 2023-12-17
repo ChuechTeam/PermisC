@@ -1,7 +1,7 @@
 # The makefile for PermisC. Lean and simple!
 
 # Set a default C compiler: gcc
-CC := gcc
+CC ?= gcc
 # Set the compiler flags:
 # -std=c11: Use the C11 standard
 # -Wall: Enable all warnings (by default there are like nearly none)
@@ -9,32 +9,43 @@ CC := gcc
 # -D_POSIX_C_SOURCE=200112L: Enable POSIX functions (for profiling)
 # -g: Enable debug symbols
 # -Isrc: Add the src folder to the include path
-CFLAGS := -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc
+CFLAGS += -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc
+
+# The optimization level, 1 to enable compiler optimizations.
+OPTIMIZE ?= 0
 ifeq ($(OPTIMIZE), 1)
 	CFLAGS += -Ofast -flto
 endif
 
 # The output directory
-OUT:=build-make
+OUT ?= build-make
 
 # All the source files, without the src folder.
-SRC_FILES:=$(patsubst src/%, %, \
-		     $(wildcard src/**/*.c) $(wildcard src/*.c))
+SRC_FILES := $(patsubst src/%, %, \
+		     	$(wildcard src/**/*.c) $(wildcard src/*.c))
 
 # All the object files, with the output directory.
-OBJ_FILES:=$(addprefix $(OUT)/, $(SRC_FILES:%.c=%.o))
+OBJ_FILES := $(addprefix $(OUT)/, $(SRC_FILES:%.c=%.o))
 
 # The full path to all header files
-HEADER_FILES_F:=$(wildcard src/*.h) $(wildcard src/**/*.h)
+HEADER_FILES_F := $(wildcard src/*.h) $(wildcard src/**/*.h)
 
 # Where the data.csv file is, used for running the program.
-FILE=../data.csv
+FILE ?= ../data.csv
 
-.PHONY: debug
-debug:
-	@echo Objects: $(OBJ_FILES)
-	@echo Src: $(SRC_FILES)
-	@echo Headers: $(HEADER_FILES_F)
+# Show the info banner
+BANNER ?= 1
+ifeq ($(BANNER), 1)
+$(info ------ PermisC Makefile -------)
+$(info Compiler: $(CC))
+$(info Compiler flags: $(CFLAGS))
+ifeq ($(OPTIMIZE), 1)
+$(info Compiler optimizations: Enabled)
+else
+$(info Compiler optimizations: Disabled (Use OPTIMIZE=1 to enable them))
+endif
+$(info -------------------------------)
+endif
 
 .PHONY: make_build_dir
 make_build_dir:
@@ -55,4 +66,5 @@ run: build
 	@build-make/PermisC $(FILE)
 
 clean:
-	rm -r $(OUT)
+	@rm -rf $(OUT)
+	@echo "Build folder cleaned up!"

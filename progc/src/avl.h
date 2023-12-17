@@ -31,7 +31,7 @@ typedef struct AVL
 
 // Returns | >= 1  when a.value > b
 //         | 0     when a.value = b
-//         | >= -1 when a.value < b
+//         | <= -1 when a.value < b
 typedef int (*AVLCompareValueFunc)(const AVL* a, const void* b);
 
 // Allocates an AVL node with the given value.

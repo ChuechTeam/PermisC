@@ -14,7 +14,17 @@ typedef struct { char* value; void* extraData; } StringAVLCreateData;
 
 int stringAVLCompareG(const AVL* tree, const void* createData)
 {
-    return strcmp(((StringAVL*)tree)->value, ((StringAVLCreateData*)createData)->value);
+    char* a = ((StringAVL*)tree)->value;
+    char* b = ((StringAVLCreateData*)createData)->value;
+
+    // Quickly eliminate some obviously non-equal strings.
+    char diff = *a - *b;
+    if (diff != 0)
+    {
+        return diff;
+    }
+
+    return strcmp(a, b);
 }
 
 AVL* stringAVLCreateG(void* createData)
@@ -34,7 +44,9 @@ StringAVL* stringAVLCreate(const char* value, void* extraData)
     assert(value);
     size_t len = strlen(value);
     StringAVL* node = malloc(sizeof(StringAVL) + len + 1);
+
     memcpy(node->value, value, len + 1);
+    node->length = (uint32_t) len;
     node->extraData = extraData;
     node->balance = 0;
     node->left = NULL;

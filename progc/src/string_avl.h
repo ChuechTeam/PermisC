@@ -8,11 +8,14 @@
  */
 
 #include "avl.h"
+#include <stdint.h>
 
 typedef struct StringAVL
 {
     AVL_HEADER(StringAVL)
 
+    // The character length of the string.
+    uint32_t length;
     // Can contain any malloc'd data. Will be freed in stringAVLFree.
     void* extraData;
     // The string of the node.
