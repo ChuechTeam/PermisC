@@ -6,13 +6,18 @@
 
 #include <immintrin.h>
 #include <stdalign.h>
+#include <assert.h>
+#include <string.h>
 
-// Useful stuff: _mm256_testz_si256, _mm256_movemask_epi8
-// Assuming a and b are of same length <= 31
-// And there are lots of zeros at the end
-// It had the potential to be good... But it wasn't. :(
-static int myVeryCoolStrcmp(char* a, char* b)
+static int min(int a, int b) { return a < b ? a : b; }
+
+// Assuming a and b are of length <= 31,
+// Currently, both strings need to be on 32 bytes of accessible memory (to prevent segfaults).
+static int myVeryCoolStrcmp(char* a, char* b, int lenA, int lenB)
 {
+    // Stop at index min(lenA, lenB)+1
+    uint32_t maskBoundary = (1 << min(lenA, lenB));
+
     // Make two vectors containing the characters of both strings.
     __m256i aVec = _mm256_loadu_si256((__m256i*)a);
     __m256i bVec = _mm256_loadu_si256((__m256i*)b);
@@ -25,9 +30,11 @@ static int myVeryCoolStrcmp(char* a, char* b)
     // bit(n, zeroMask) = a[n] == b[n]
     uint32_t zeroMask = _mm256_movemask_epi8(zeros);
 
-    // Just apply the NOT operator so we have 1 if there's a difference:
+    // Just apply the NOT operator so we have 1 if there's a difference.
+    // The mask boundary will flip the bit containing 
+    // the last character of either A or B to 1, so we don't 
     // bit(n, notZeroMask) = a[n] != b[n]
-    uint32_t notZeroMask = ~zeroMask;
+    uint32_t notZeroMask = ~zeroMask | maskBoundary;
 
     // CTZ = Count Trailing Zeros
     // Start from the first (least significant) bit, and find the index of the bit with a value of 1.
@@ -39,16 +46,8 @@ static int myVeryCoolStrcmp(char* a, char* b)
     // If we're at the end of the string, then differIndex will be 32, and we'll return 0.
     int c1 = (unsigned char) a[differIndex], c2 = (unsigned char) b[differIndex];
     int diff = c1 - c2;
-    int res = (c1|c2) == '\0' ? 0 : diff;
-    //assert(res == strcmp(a,b));
-    return res;
+    return diff;
 }
-
-typedef union
-{
-    __m256i vec;
-    int64_t int64[4];
-} Vec256;
 
 // This one's pretty busted but maybe useful one day?
 // static int myVeryCoolStrcmp(char* a, char* b)

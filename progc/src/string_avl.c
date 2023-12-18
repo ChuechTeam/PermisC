@@ -11,6 +11,8 @@
  * Functions for interfacing with the generic AVL tree.
  */
 
+bool enableExperimentalAVXStuff = true;
+
 typedef struct { char* value; void* extraData; int32_t length; } StringAVLCreateData;
 
 int stringAVLCompareG(const AVL* tree, const void* createData)
@@ -28,9 +30,9 @@ int stringAVLCompareG(const AVL* tree, const void* createData)
         return diff;
     }
 
-    if (strTree->length < 32 && strCreateData->length < 32)
+    if (enableExperimentalAVXStuff &&  strCreateData->length < 32 && strTree->length < 32)
     {
-        return myVeryCoolStrcmp(a, b);
+        return myVeryCoolStrcmp(a, b, strTree->length, strCreateData->length);
     }
     else
     {
@@ -54,11 +56,12 @@ StringAVL* stringAVLCreate(const char* value, void* extraData)
 {
     assert(value);
     size_t len = strlen(value);
-    StringAVL* node = calloc(1, sizeof(StringAVL) + (len < 33 ? 33 : len) + 1);
+    // Allocate a bit of slack so our custom strcmp doesn't segfault (see magic_strcmp.h)
+    StringAVL* node = malloc(sizeof(StringAVL) + (len < 31 ? 31 : len) + 1);
 
     memcpy(node->value, value, len + 1);
     node->length = (uint32_t) len;
-    node->extraData = extraData;
+    node->extraData = extraData;    
     node->balance = 0;
     node->left = NULL;
     node->right = NULL;

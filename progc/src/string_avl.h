@@ -10,6 +10,8 @@
 #include "avl.h"
 #include <stdint.h>
 
+extern bool enableExperimentalAVXStuff;
+
 typedef struct StringAVL
 {
     AVL_HEADER(StringAVL)

@@ -34,6 +34,11 @@ int main(int argv, char** argc)
     // Initialise the profiler.
     profilerInit();
 
+    char* env = getenv("AVX_STUFF");
+    if (env && env[0] == '0') {
+        enableExperimentalAVXStuff = false;
+    }
+
     Options options;
     char optionsErrMsg[256];
     if (!parseOptions(argv, argc, &options, optionsErrMsg))

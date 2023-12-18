@@ -35,8 +35,6 @@ typedef struct RouteStream
     char* readBuf;
     uint32_t readBufChars;
     uint32_t readBufPos;
-
-    char tempStrings[3][33];
 } RouteStream;
 
 typedef enum

@@ -20,7 +20,8 @@ RouteStream rsOpen(const char* path)
     FILE* file = fopen(path, "rb");
     s.file = file;
 
-    s.readBuf = malloc(READ_BUFFER_SIZE);
+    // Add a bit of slack so our custom strcmp doesn't segfault (see magic_strcmp.h).
+    s.readBuf = malloc(READ_BUFFER_SIZE + 32);
     // Checked later by rsCheck
 
     if (file)
@@ -162,7 +163,7 @@ uint32_t readUnsignedInt(RouteStream* stream)
 
 // Reads the next string in the CSV file from the stream.
 // The semicolon or newline character will be replaced by a null-terminator.
-char* readStr(RouteStream* stream, int32_t poolIdx, int32_t* outLen)
+char* readStr(RouteStream* stream, int32_t* outLen)
 {
     // Find the length of the string
     char ch = stream->readBuf[stream->readBufPos];
@@ -178,22 +179,15 @@ char* readStr(RouteStream* stream, int32_t poolIdx, int32_t* outLen)
     char* strStart = stream->readBuf + stream->readBufPos - i;
     stream->readBuf[stream->readBufPos] = '\0';
 
+    *outLen = i;
+
     // Skip the semicolon.
     if (ch == ';')
     {
         stream->readBufPos++;
     }
 
-    *outLen = i;
-    if (i < 32)
-    {
-        strncpy(stream->tempStrings[poolIdx], strStart, 33);
-        return stream->tempStrings[poolIdx];
-    }
-    else
-    {
-        return strStart;
-    }
+    return strStart;
 }
 
 float readUnsignedFloat(RouteStream* stream)
@@ -270,8 +264,6 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
         }
     }
 
-    memset(stream->tempStrings, 0, sizeof(stream->tempStrings));
-
     if (fieldsToRead & ROUTE_ID)
         outRouteStep->routeId = readUnsignedInt(stream);
     else
@@ -283,12 +275,12 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
         skipField(stream);
 
     if (fieldsToRead & TOWN_A)
-        outRouteStep->townA = readStr(stream, 0, &outRouteStep->townALen);
+        outRouteStep->townA = readStr(stream, &outRouteStep->townALen);
     else
         skipField(stream);
 
     if (fieldsToRead & TOWN_B)
-        outRouteStep->townB = readStr(stream, 1, &outRouteStep->townBLen);
+        outRouteStep->townB = readStr(stream, &outRouteStep->townBLen);
     else
         skipField(stream);
 
@@ -298,7 +290,7 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
         skipField(stream);
 
     if (fieldsToRead & DRIVER_NAME)
-        outRouteStep->driverName = readStr(stream, 2, &outRouteStep->driverLen);
+        outRouteStep->driverName = readStr(stream, &outRouteStep->driverLen);
     else
         skipField(stream);
 
