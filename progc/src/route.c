@@ -16,6 +16,7 @@ RouteStream rsOpen(const char* path)
     s.readBuf = NULL;
     s.readBufPos = 0;
     s.readBufChars = 0;
+    s.closed = false;
 
     FILE* file = fopen(path, "rb");
     s.file = file;
@@ -39,11 +40,15 @@ RouteStream rsOpen(const char* path)
         }
     }
 
+    s.valid = file != NULL && s.readBuf != NULL;
+
     return s;
 }
 
 bool rsCheck(const RouteStream* stream, char errMsg[ERR_MAX])
 {
+    assert(stream && !stream->closed);
+
     if (!stream->file || ferror(stream->file))
     {
         char* fileError = strerror(errno);
@@ -56,7 +61,7 @@ bool rsCheck(const RouteStream* stream, char errMsg[ERR_MAX])
         snprintf(errMsg, ERR_MAX, "Pas assez de mémoire pour allouer le buffer de lecture");
         return false;
     }
-    {
+    else {
         return true;
     }
 }
@@ -164,18 +169,17 @@ uint32_t readUnsignedInt(RouteStream* stream)
 // The semicolon or newline character will be replaced by a null-terminator.
 char* readStr(RouteStream* stream)
 {
-    // Find the length of the string
-    char ch = stream->readBuf[stream->readBufPos];
-    size_t i = 0;
+    char* strStart = stream->readBuf + stream->readBufPos;
+
+    // Advance until we find a semicolon or a newline.
+    char ch = *strStart;
     while (ch != ';' && ch != '\n')
     {
-        i++;
         stream->readBufPos++;
         ch = stream->readBuf[stream->readBufPos];
     }
 
     // Mark the end of the string here.
-    char* strStart = stream->readBuf + stream->readBufPos - i;
     stream->readBuf[stream->readBufPos] = '\0';
 
     // Skip the semicolon.
@@ -249,8 +253,7 @@ void skipField(RouteStream* stream)
 bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRead)
 {
     assert(outRouteStep);
-    assert(stream);
-    assert(stream->file);
+    assert(stream && stream->valid);
 
     if (stream->readBufPos == stream->readBufChars - 1 || stream->readBufChars == 0)
     {
@@ -303,7 +306,26 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
     return true;
 }
 
-bool rsReadAllButDistance(RouteStream* stream, RouteStep* outRouteStep)
+void rsClose(RouteStream* stream)
 {
-    return rsRead(stream, outRouteStep, ALL_FIELDS & ~DISTANCE);
+    assert(stream);
+
+    if (!stream->valid)
+    {
+        return;
+    }
+
+    if (stream->file)
+    {
+        fclose(stream->file);
+        stream->file = NULL;
+    }
+    if (stream->readBuf)
+    {
+        free(stream->readBuf);
+        stream->readBuf = NULL;
+    }
+
+    stream->closed = true;
+    stream->valid = false;
 }

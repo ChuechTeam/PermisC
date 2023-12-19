@@ -30,8 +30,13 @@ typedef struct RouteStream
     // The buffer contains multiple lines of the CSV file.
     // Each line is guaranteed to end with a '\n' character.
     char* readBuf;
-    uint32_t readBufChars;
-    uint32_t readBufPos;
+    uint32_t readBufChars; // The total number of characters in the buffer.
+    uint32_t readBufPos; // The current read position in the buffer.
+
+    // True when the stream has a file open, and a buffer ready.
+    bool valid;
+    // True when the stream has been closed using rsClose.
+    bool closed;
 } RouteStream;
 
 typedef enum
@@ -45,15 +50,30 @@ typedef enum
     ALL_FIELDS = ROUTE_ID | STEP_ID | TOWN_A | TOWN_B | DISTANCE | DRIVER_NAME
 } RouteFields;
 
-// TODO: Close and free functions
-
+// Opens a CSV file of all routes using the given path.
+// Use rsCheck to check if the stream has been created successfully,
+// and get an error message if it didn't.
 RouteStream rsOpen(const char* path);
+
+// Checks the validity of a stream, and outputs an error message if it is not valid.
 bool rsCheck(const RouteStream* stream, char errMsg[ERR_MAX]);
 
 // Reads the next route step from the stream. When there are no more lines, returns false.
+// Use the fieldsToRead parameter to control which fields should be read and ignored.
 //
 // IMPORTANT: All strings (townA, townB, driverName) are only valid during the call to rsRead.
 // The next call to rsRead make them invalid.
+//
+// Example:
+// void func(RouteStream* stream) {
+//     RouteStep step;
+//     while (rsRead(&stream, &step, DRIVER_NAME | DISTANCE)) {
+//         printf("Looks like %s just traveled %f meters!\n", step.driverName, step.distance);
+//    }
+// }
 bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRead);
+
+// Closes the file and frees any resources allocated by the stream. Marks the stream as invalid.
+void rsClose(RouteStream* stream);
 
 #endif

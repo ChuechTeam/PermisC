@@ -33,11 +33,12 @@ int main(int argv, char** argc)
     // Initialise the profiler.
     profilerInit();
 
+    // Parse the options (file, computation type, etc.)
     Options options;
     char optionsErrMsg[256];
     if (!parseOptions(argv, argc, &options, optionsErrMsg))
     {
-        printf("Erreur d'argument : %s\n", optionsErrMsg);
+        fprintf(stderr, "Erreur d'argument : %s\n", optionsErrMsg);
         return 2;
     }
 
@@ -46,7 +47,7 @@ int main(int argv, char** argc)
     char streamErrMsg[ERR_MAX];
     if (!rsCheck(&stream, streamErrMsg))
     {
-        printf("Erreur lors de l'ouverture du fichier : %s\n", streamErrMsg);
+        fprintf(stderr, "Erreur lors de l'ouverture du fichier : %s\n", streamErrMsg);
         return 1;
     }
 
@@ -77,6 +78,8 @@ int main(int argv, char** argc)
 
         printf("Conducteurs : %d | Villes : %d\n", avlSize(driversAVL), avlSize(townsAVL));
     }
+
+    rsClose(&stream);
 
     return 0;
 }

@@ -252,7 +252,7 @@ AVL* avlInsert(AVL* tree, void* value, const AVLCreateFunc create, const AVLComp
             me->left = child;
         }
 
-        // Step 2: Are we done balancing the tree? If so, let's take a break.
+        // Step 1.5: Are we done balancing the tree? If so, let's take a break.
         if (noMoreBalanceChanges)
         {
             break;
