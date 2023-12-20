@@ -1,73 +1,121 @@
 #include "computations.h"
 #include "route.h"
-
-typedef struct Driver{
+#include <string.h>
+#include <stdlib.h>
+typedef struct Driver
+{
     char name[100];
-    struct Driver* next;
-}Driver;
+    struct Driver *next;
+} Driver;
 
-typedef struct Town{
+typedef struct ID
+{
+    int ID;
+    struct ID *next;
+} ID;
+
+typedef struct Town
+{
     char name[100];
-    int passed; //compteur
-    struct Town* next;
-    Driver* head;
-    Driver* tail;
-}Town;
+    struct Town *next;
+    int passed; // compteur
+    ID *IDhead; // chaine d'ID
+    ID *IDtail;
+    Driver *head; // chaine de chauffeurs
+    Driver *tail;
+} Town;
 
-typedef struct File{
-    struct Town* head;
-    struct Town* tail;
-}File;
+typedef struct File
+{
+    struct Town *head;
+    struct Town *tail;
+} File;
 
-Town* NewTown(char* townName){
-    Town* c= malloc(sizeof(Town));
-    if(c==NULL){
-        return 0;
+int searchID(ID *h, int Id)
+{
+    ID* p1 = h;
+    while (p1 != NULL)
+    {
+        if (p1->ID == Id) // Si l'ID existe dans la chaine
+        {
+            return 1;
+        }
+        else
+        {
+            p1 = p1->next;
+        }
     }
-    c->name=townName;
-    c->next=NULL;
+    return 0; // sinon
 }
 
-File *insertTown(File* f, Town* T){
-    if(f->head==NULL){
-        f->head=T;
-        f->tail=T;
+File *insertTown(File *f, Town *T, ID *ID)
+{
+    Town *p1 = f->head;
+    if (f->head == NULL) // quand la file est vide: création du premier chainon
+    {
+        f->head = T;
+        f->tail = T;
     }
-    else{
-        f->tail->next=T;
-        f->tail=T;
+    else
+    {
+        while (p1 != NULL)
+        {
+            if (strcmp(p1->name, T->name) == 0)
+            {
+                if (searchID(p1->IDhead, ID) == 1)
+                { // quand la ville avec le meme ID a été trouvée dans la file
+                    p1->passed += 1;
+                    return f;
+                }
+                else
+                {
+                    p1 = p1->next;
+                }
+            }
+            f->tail->next = T;
+            f->tail = T;
+            T->IDtail->next = ID; // ajout de l'ID dans la chaina d'ID de la ville
+            T->IDtail->next = ID;
+            // driver à ajouter
+            return f;
+        }
     }
-    return f;
 }
-File* supTown(File* f, int* passage){
-    Town* p1=f->head;
-    if(f->head==NULL){
+
+File *supTown(File *f, Town *passage)
+{
+    Town *p1 = f->head;
+    if (f->head == NULL) // quand la chaine est vide
+    {
         printf("No town!\n");
-        return(NULL);
+        return (NULL);
     }
-    else{
-        *passage= f->head->passed;
-        f->head=f->head->next;
+    else
+    {
+        *passage = *f->head; // sinon suppression du premier chainon (pour l'envoyer dans l'AVL)
+        f->head = f->head->next;
         free(p1);
         return f;
     }
 }
 
-void computationT(RouteStream* stream)
+void computationT(RouteStream *stream)
 {
-    Driver* D
-    Town* T;
-    File* f;
-
+    Town *T= malloc(sizeof(Town));
+    File *f = malloc(sizeof(File));
+    f = NULL;
     RouteStep step;
-    while (rsRead(&stream, &step, ALL_FIELDS & ~DISTANCE))
-        {
-            if(step.townA);
-        }
+    while (rsRead(stream, &step, ALL_FIELDS & ~DISTANCE))
+    {   
+        strcpy(T->name,step.townA);
+        f = insertTown(f, T, step.routeId);
+        strcpy(T->name,step.townB);
+        f = insertTown(f, T, step.routeId);
+    }
 }
-/* récuptown A, town B 
-récup le step ID
+/* récuptown A, town B :fait
+récup le step ID: fait
 si pas déjà utilisé:
-chainon de ville avec chainon de chauffeurs pour chaque ville
+chainon de ville avec chainon de chauffeurs et chainon d'ID pour chaque ville :fait
 
-Plus tard AVL aussi...
+Plus tard AVL aussi...*/
