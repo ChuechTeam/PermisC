@@ -30,8 +30,8 @@ OBJ_FILES := $(addprefix $(OUT)/, $(SRC_FILES:%.c=%.o))
 # The full path to all header files
 HEADER_FILES_F := $(wildcard src/*.h) $(wildcard src/**/*.h)
 
-# Where the data.csv file is, used for running the program.
-FILE ?= ../data.csv
+# Clean the build folder before building
+CLEAN ?= 0
 
 # Show the info banner
 BANNER ?= 1
@@ -60,11 +60,20 @@ $(OUT)/PermisC: $(OBJ_FILES)
 	@echo "Linking PermisC..."
 	@$(CC) $(CFLAGS) $^ -o $@
 
-.PHONY: build run clean
-build: $(OUT)/PermisC
-run: build
-	@build-make/PermisC $(FILE)
+.PHONY: build clean
+build:
+	@# Do a test check to see if the optimized_build file exists.\
+    # The test returns 0 when it succeeded, so we need to invert it with the exclamation mark (!)\
+	! [ -e $(OUT)/optimized_build ]; PREVIOUS_BUILD_OPTIMIZED=$$?; \
+	# Clear the build folder when requested, or when the optimization level changed.\
+	if [ "$(CLEAN)" = 1 ] || [ "$(OPTIMIZE)" -ne $$PREVIOUS_BUILD_OPTIMIZED ]; then\
+		$(MAKE) --quiet clean BANNER=0;\
+	fi
+ifeq ($(OPTIMIZE), 1) # Create the file indicating that we've done an optimized build.
+	@mkdir -p $(OUT) && touch $(OUT)/optimized_build
+endif
+	@$(MAKE) --quiet "$(OUT)/PermisC" BANNER=0
 
 clean:
-	@rm -rf $(OUT)
+	@find "$(OUT)" -mindepth 1 -delete
 	@echo "Build folder cleaned up!"

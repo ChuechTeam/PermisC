@@ -44,6 +44,7 @@ StringAVL* stringAVLCreate(const char* value, void* extraData)
     assert(value);
     size_t len = strlen(value);
     StringAVL* node = malloc(sizeof(StringAVL) + len + 1);
+    assert(node);
 
     memcpy(node->value, value, len + 1);
     node->length = (uint32_t) len;
