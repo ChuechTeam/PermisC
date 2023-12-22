@@ -64,7 +64,7 @@ $(OUT)/PermisC: $(OBJ_FILES)
 build:
 	@# Do a test check to see if the optimized_build file exists.\
     # The test returns 0 when it succeeded, so we need to invert it with the exclamation mark (!)\
-	! [ -e $(OUT)/optimized_build ]; PREVIOUS_BUILD_OPTIMIZED=$$?; \
+	! [ -e "$(OUT)/optimized_build" ]; PREVIOUS_BUILD_OPTIMIZED=$$?; \
 	# Clear the build folder when requested, or when the optimization level changed.\
 	if [ "$(CLEAN)" = 1 ] || [ "$(OPTIMIZE)" -ne $$PREVIOUS_BUILD_OPTIMIZED ]; then\
 		$(MAKE) --quiet clean BANNER=0;\
@@ -75,5 +75,13 @@ endif
 	@$(MAKE) --quiet "$(OUT)/PermisC" BANNER=0
 
 clean:
-	@find "$(OUT)" -mindepth 1 -delete
+	@\
+	if [ -e "$(OUT)" ]; then\
+		# If someone created a "build-make" file that isn't a folder (why would you even do this?!)\
+        # then we need to remove it.\
+        # Else, use the 'find' command to delete files in the directory WITHOUT removing the directory itself.\
+        # Removing it using rm leads to annoying bugs when having build-make as the current directory.\
+ 		if [ ! -d "$(OUT)" ]; then rm "$(OUT)";\
+ 		else find "$(OUT)" -mindepth 1 -delete; fi;\
+ 	fi
 	@echo "Build folder cleaned up!"

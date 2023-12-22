@@ -8,7 +8,7 @@
 # that doesn't make me turn around in circles for 1 hour long...
 
 # Failures in individual pipe commands propagate to the entire pipe command.
-# The default is DUMB and makes masks any errors in the [0; n-1] commands of the n commands pipe.
+# The default is DUMB and hides any error in the [0; n-1] commands of the n commands pipe.
 set -o pipefail
 
 # Exit the script if any command fails.
@@ -27,33 +27,50 @@ for arg in "$@"; do
   if [ "${arg}" = "-h" ] || [ "${arg}" = "--help" ]; then
     echo "PermisC, le programme de traitement approuvé par Marcel"
     echo "Utilisation : ./PermisC.sh FICHIER <-d1|-d2|-l|-t|-s>..."
-    echo "avec FICHIER un fichier CSV valide"
+    echo "              avec FICHIER un fichier CSV valide."
+    echo "Lit le fichier CSV des trajets et effectue tous les traitements demandés."
+    echo "Les graphiques seront créés dans le dossier « images »."
+    echo ""
     echo "Options :"
-    echo -e "  -h, --help : Affiche l'aide"
-    echo -e "  -d1 : Lancer le traitement D1"
-    echo -e "  -d2 : Lancer le traitement D2"
-    echo -e "  -l : Lancer le traitement L"
-    echo -e "  -t : Lancer le traitement T"
-    echo -e "  -s : Lancer le traitement S"
+    echo "  -h, --help : Affiche l'aide"
+    echo "  -d1 : Lancer le traitement D1 : les conducteurs avec le plus de trajets"
+    echo "  -d2 : Lancer le traitement D2 : les conducteurs avec la plus grande distance parcourue"
+    echo "  -l : Lancer le traitement L : les trajets les plus longs"
+    echo "  -t : Lancer le traitement T : les villes les plus traversées"
+    echo "  -s : Lancer le traitement S : les statistiques sur la distance des trajets"
     exit 0
   fi
 done
 
 # Check if the file argument is missing: either we have no args, or the first is an option.
 # Also check if we don't have a computation argument.
-if [ $# -eq 0 ] || { [ $# -eq 1 ] && [[ $1 = "-"*  ]]; }; then
+if [ $# -eq 0 ]; then
   echo "Le fichier à traiter est requis. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
   exit 1
 elif [ $# -eq 1 ]; then
-  echo "Un argument de traitement est requis. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+  if [[ $1 = "-"*  ]]; then
+    echo "Le fichier à traiter est requis et doit être le premier argument."\
+         "(Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+  else
+    echo "Un argument de traitement est requis. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+  fi
   exit 1
 fi
 
 # Check if the CSV file exists, and store it.
 CSV_FILE=$1
 if [ ! -f "$CSV_FILE" ]; then
-  echo "Le fichier « $CSV_FILE » n'existe pas." >&2
+  # If it starts with a dash, there's a 99.99% chance that the user put an option instead of a file.
+  if [[ "$CSV_FILE" = "-"* ]]; then
+    echo "Le fichier à traiter doit être le premier argument. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+  else
+    echo "Le fichier « $CSV_FILE » n'existe pas." >&2
+  fi
   exit 1
+else
+  # Put the absolute path, so we don't get sneaky errors with argument-parsing for awk and PermisC,
+  # or when the current directory changes for some reason.
+  CSV_FILE="$(realpath "$CSV_FILE")"
 fi
 
 COMPUTATIONS=()
@@ -98,7 +115,13 @@ done
 # ----------------------------------------------
 
 # Setup some variables for directories
-PROJECT_DIR="$(dirname "$0")"
+# Use realpath to find the absolute path to avoid surprises once again.
+# The -q argument mutes the stderr output, and yes it might fail due to an invalid
+# $0 argument or a too long path.
+if ! PROJECT_DIR="$(realpath -q "$(dirname "$0")")"; then
+  echo "Impossible de trouver le dossier racine du projet" >&2
+  exit 2
+fi
 PROGC_DIR="$PROJECT_DIR/progc"
 TEMP_DIR="$PROJECT_DIR/temp"
 IMAGES_DIR="$PROJECT_DIR/images"
@@ -106,7 +129,7 @@ AWK_COMP_DIR="$PROJECT_DIR/awk_computations"
 PERMISC_EXEC="$PROGC_DIR/build-make/PermisC"
 
 # Putting this JUST IN CASE $0 doesn't give the right directory due to obscure
-# reasons (aliased script, not using bash, etc.)
+# reasons (aliased script, not using bash, symlinks, etc.)
 # If we didn't check this, who knows what would be DELETED with rm?!?
 if [ ! -f "$PROJECT_DIR/PermisC.sh" ]; then
   echo "Impossible de trouver le dossier racine du projet" >&2
