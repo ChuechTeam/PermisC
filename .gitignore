@@ -69,3 +69,7 @@ build-make/
 
 # it's too big (the csv file obviously)
 **/data.csv
+
+# Ignore the result folders
+images/
+temp/
