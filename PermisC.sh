@@ -126,6 +126,7 @@ PROGC_DIR="$PROJECT_DIR/progc"
 TEMP_DIR="$PROJECT_DIR/temp"
 IMAGES_DIR="$PROJECT_DIR/images"
 AWK_COMP_DIR="$PROJECT_DIR/awk_computations"
+GNUPLOT_SCRIPTS_DIR="$PROJECT_DIR/gnuplot_scripts"
 PERMISC_EXEC="$PROGC_DIR/build-make/PermisC"
 
 # Putting this JUST IN CASE $0 doesn't give the right directory due to obscure
@@ -268,30 +269,35 @@ graph_err_file() {
 
 graph_d1() {
   local -r out_file="$(graph_out_file "d1")"
-  echo "TODO: Implement GnuPlot script for D1" >&2
-  return 254
+  local -r in_file="$(comp_out_file "d1")"
+  gnuplot -c "$GNUPLOT_SCRIPTS_DIR/d1.gp" "$in_file" "$out_file"
+  return $?
 }
 
 graph_d2() {
   local -r out_file="$(graph_out_file "d2")"
-  echo "TODO: Implement GnuPlot script for D2" >&2
-  return 254
+  local -r in_file="$(comp_out_file "d2")"
+  gnuplot -c "$GNUPLOT_SCRIPTS_DIR/d2.gp" "$in_file" "$out_file"
+  return $?
 }
 
 graph_l() {
   local -r out_file="$(graph_out_file "l")"
-  echo "TODO: Implement GnuPlot script for L" >&2
-  return 254
+  local -r in_file="$(comp_out_file "l")"
+  gnuplot -c "$GNUPLOT_SCRIPTS_DIR/l.gp" "$in_file" "$out_file"
+  return $?
 }
 
 graph_t() {
   local -r out_file="$(graph_out_file "t")"
+  local -r in_file="$(comp_out_file "t")"
   echo "TODO: Implement GnuPlot script for T" >&2
   return 254
 }
 
 graph_s() {
   local -r out_file="$(graph_out_file "s")"
+  local -r in_file="$(comp_out_file "s")"
   echo "TODO: Implement GnuPlot script for S" >&2
   return 254
 }

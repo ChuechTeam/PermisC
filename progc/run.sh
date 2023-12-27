@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
-if ! make -j build; then
+PROGC_DIR="$(dirname "$0")"
+
+if ! make -C "$PROGC_DIR" --no-print-directory -j build; then
   exit 1
 fi
 
 if [ "${DEBUG}" = '1' ]; then
-  gdb ./build-make/PermisC -tui -q -ex=r --args ./build-make/PermisC "$@"
+  gdb "$PROGC_DIR/build-make/PermisC" -tui -q -ex=r --args "$PROGC_DIR/build-make/PermisC" "$@"
 else
-  ./build-make/PermisC "$@"
+  "$PROGC_DIR/build-make/PermisC" "$@"
 fi
