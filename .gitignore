@@ -73,3 +73,6 @@ build-make/
 # Ignore the result folders
 images/
 temp/
+
+# Clang cache folders
+**/.cache

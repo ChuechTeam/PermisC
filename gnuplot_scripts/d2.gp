@@ -22,7 +22,6 @@ myBoxWidth = 0.8
 set offsets 0,0,0.5-myBoxWidth/2.,0.5
 
 # x  y dx dy
-# !! le ".in"
 plot "<awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' ".ARG1 using\
     (0.5*$3):\
     0:\

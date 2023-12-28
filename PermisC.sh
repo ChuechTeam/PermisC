@@ -291,8 +291,8 @@ graph_l() {
 graph_t() {
   local -r out_file="$(graph_out_file "t")"
   local -r in_file="$(comp_out_file "t")"
-  echo "TODO: Implement GnuPlot script for T" >&2
-  return 254
+  gnuplot -c "$GNUPLOT_SCRIPTS_DIR/t.gp" "$in_file" "$out_file"
+  return $?
 }
 
 graph_s() {
