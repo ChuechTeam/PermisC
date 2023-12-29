@@ -11,6 +11,7 @@ set xlabel "Identifiant du trajet"
 set title "Option -l : Distance = f (Trajet)"
 set terminal pngcairo size 800,600
 set output ARG2 # Out
+set datafile separator ";"
 
 set yrange [0:*]      # start at zero, find max from the data
 set style fill solid  # solid color boxes
@@ -23,5 +24,5 @@ plot "<awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' ".ARG1 using\
     0:\
     ($2):\
     (myBoxWidth/2.):\
-    xtic(sprintf("%s", strcol(1)))\
+    xtic(strcol(1))\
 with boxes lc rgb 'green'

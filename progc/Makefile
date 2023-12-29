@@ -14,7 +14,7 @@ CFLAGS += -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc
 # The optimization level, 1 to enable compiler optimizations.
 OPTIMIZE ?= 0
 ifeq ($(OPTIMIZE), 1)
-	CFLAGS += -Ofast -flto
+	CFLAGS += -Ofast -flto -msse4.2
 endif
 
 # The output directory

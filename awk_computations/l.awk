@@ -3,5 +3,5 @@
 }
 END {
     for (t in trips)
-        print t, trips[t]
+        print t ";" trips[t]
 }

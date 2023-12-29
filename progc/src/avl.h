@@ -12,6 +12,16 @@
 // The common fields to all AVL trees. Must be placed at the very beginning of the struct.
 #define AVL_HEADER(type) struct type *left, *right; int balance;
 
+// Sets all AVL fields to zero values (left and right are NULL, balance is 0).
+#define AVL_INIT(tree) (tree)->left = (tree)->right = NULL; (tree)->balance = 0;
+
+// Creates a function for an AVL tree type that calls the avlInsert function, by applying the types correctly.
+#define AVL_DECLARE_INSERT_FUNCTION(funcName, treeType, valueType, funcA, funcB) \
+    treeType* funcName(treeType* tree, valueType* value, treeType** insertedNode, bool* alreadyPresent) \
+    { \
+        return (treeType*) avlInsert((AVL*) tree, value, (funcA), (funcB), (AVL**) insertedNode, alreadyPresent); \
+    }
+
 // The base struct for AVL trees.
 // For making AVL trees of a type T, you need to either:
 // - create another struct with the AVL struct as the first member.

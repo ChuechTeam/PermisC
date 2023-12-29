@@ -11,6 +11,7 @@ add_executable(PermisC
         src/string_avl.c
         src/computations/computation_t.c
         src/computations/computation_s.c
+        src/computations/computation_d1.c
         src/options.c
 )
 
@@ -25,3 +26,7 @@ if (MSVC)
         target_link_options(PermisC PUBLIC /LTCG)
     endif ()
 endif ()
+
+if (UNIX)
+    target_compile_options(PermisC PUBLIC -Wall -Wno-unused-function)
+endif()

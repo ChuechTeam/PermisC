@@ -10,12 +10,12 @@
  * Functions for interfacing with the generic AVL tree.
  */
 
-typedef struct { char* value; void* extraData; } StringAVLCreateData;
+typedef struct { const char* value; void* extraData; } StringAVLCreateData;
 
 int stringAVLCompareG(const AVL* tree, const void* createData)
 {
-    char* a = ((StringAVL*)tree)->value;
-    char* b = ((StringAVLCreateData*)createData)->value;
+    const char* a = ((StringAVL*)tree)->value;
+    const char* b = ((StringAVLCreateData*)createData)->value;
 
     // Quickly eliminate some obviously non-equal strings.
     char diff = *a - *b;
@@ -33,7 +33,7 @@ AVL* stringAVLCreateG(void* createData)
     return (AVL*)stringAVLCreate(data->value, data->extraData);
 }
 
-static AVLFuncs funcs = { &stringAVLCompareG, &stringAVLCreateG };
+static const AVLFuncs funcs = { &stringAVLCompareG, &stringAVLCreateG };
 
 /*
  * Normal functions.
@@ -75,7 +75,8 @@ StringAVL* stringAVLInsert(StringAVL* tree, char* value, void* extraData, String
 
 StringAVL* stringAVLLookup(StringAVL* tree, const char* value)
 {
-    return (StringAVL*) avlLookup((AVL*)tree, value, funcs.compare);
+    StringAVLCreateData data = { value, NULL };
+    return (StringAVL*) avlLookup((AVL*)tree, &data, funcs.compare);
 }
 
 void printDOTHeader(StringAVL* a, char dir)

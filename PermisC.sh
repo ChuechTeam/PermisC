@@ -27,17 +27,23 @@ for arg in "$@"; do
   if [ "${arg}" = "-h" ] || [ "${arg}" = "--help" ]; then
     echo "PermisC, le programme de traitement approuvé par Marcel"
     echo "Utilisation : ./PermisC.sh FICHIER <-d1|-d2|-l|-t|-s>..."
+    echo "                                   [--experimental-compute]"
     echo "              avec FICHIER un fichier CSV valide."
     echo "Lit le fichier CSV des trajets et effectue tous les traitements demandés."
     echo "Les graphiques seront créés dans le dossier « images »."
     echo ""
     echo "Options :"
-    echo "  -h, --help : Affiche l'aide"
-    echo "  -d1 : Lancer le traitement D1 : les conducteurs avec le plus de trajets"
-    echo "  -d2 : Lancer le traitement D2 : les conducteurs avec la plus grande distance parcourue"
-    echo "  -l : Lancer le traitement L : les trajets les plus longs"
-    echo "  -t : Lancer le traitement T : les villes les plus traversées"
-    echo "  -s : Lancer le traitement S : les statistiques sur la distance des trajets"
+    echo "  -h, --help     Afficher l'aide"
+    echo "  -d1            Lancer le traitement D1 : les conducteurs avec le plus de trajets"
+    echo "  -d2            Lancer le traitement D2 : les conducteurs avec la plus grande distance parcourue"
+    echo "  -l             Lancer le traitement L : les trajets les plus longs"
+    echo "  -t             Lancer le traitement T : les villes les plus traversées"
+    echo "  -s             Lancer le traitement S : les statistiques sur la distance des trajets"
+    echo "  --experimental-compute   Utiliser des implémentations expérimentales de calcul (au lieu de awk)"
+    echo "                           plus rapides pour certains traitements: seulement D1 pour le moment."
+    echo "Variables d'environnement:"
+    echo "  AWK : Le chemin vers l'exécutable awk. Par défaut, « awk »."
+    echo "  CLEAN : Force la recompilation de l'exécutable PermisC si sa valeur est 1."
     exit 0
   fi
 done
@@ -74,6 +80,7 @@ else
 fi
 
 COMPUTATIONS=()
+EXPERIMENTAL_COMPUTE=0
 
 # Adds a computation to the COMPUTATIONS array, while ignoring duplicates.
 add_computation() {
@@ -87,7 +94,7 @@ add_computation() {
   COMPUTATIONS+=("$comp")
 }
 
-# Put all computations in the COMPUTATIONS array.
+# Put all computations in the COMPUTATIONS array, and parse other arguments as well.
 for (( i=2; i<=$#; i++ )); do
   arg=${!i}
   if [ "$arg" = "-d1" ]; then
@@ -100,8 +107,10 @@ for (( i=2; i<=$#; i++ )); do
     add_computation "t"
   elif [ "$arg" = "-s" ]; then
     add_computation "s"
+  elif [ "$arg" = "--experimental-compute" ]; then
+    EXPERIMENTAL_COMPUTE=1
   elif [[ "$arg" = "-"* ]]; then
-    echo "Traitement « $arg » inconnu. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+    echo "Option « $arg » inconnue. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
     exit 1
   else
     echo "Un seul fichier peut être donné à la fois. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
@@ -175,6 +184,7 @@ comp_err_file() {
 }
 
 # Allow the user to use a custom awk executable (like mawk), and throw if it doesn't exist.
+# TODO: Only check when we're using an awk-based computation?
 AWK=${AWK:-awk}
 if ! type "$AWK" > /dev/null 2>&1; then
   echo "Impossible de lancer le traitement : commande awk (« $AWK ») introuvable." >&2
@@ -182,22 +192,27 @@ if ! type "$AWK" > /dev/null 2>&1; then
 fi
 
 # Computations D1, D2 and L are done with awk. T and S are done with the PermisC executable.
-# The 141 exit code should be ignored as it means the sort command was interrupted by a SIGPIPE,
+# Computation D1 can be done with the experimental implementation in PermisC.
+# The 141 exit code should be ignored later as it means the sort command was interrupted by a SIGPIPE,
 # which we arguably don't care. (Sorry to break sort's feelings...)
 
 comp_d1() {
-  $AWK -F ';' -f "$AWK_COMP_DIR/d1.awk" "$CSV_FILE" | LC_ALL=C sort -k3,3nr -S 50% | head -n 10
-  if [ $? -eq 141 ]; then return 0; else return $?; fi
+  if [ "$EXPERIMENTAL_COMPUTE" -eq 1 ]; then
+    "$PERMISC_EXEC" -d1 "$CSV_FILE"
+  else
+    $AWK -F ';' -f "$AWK_COMP_DIR/d1.awk" "$CSV_FILE" | LC_ALL=C sort -t ';' -k2nr -S 50% | head -n 10
+  fi
+  return $?
 }
 
 comp_d2() {
-  $AWK -F ';' -f "$AWK_COMP_DIR/d2.awk" "$CSV_FILE" | sort -k3 -nr | head -n 10
-  if [ $? -eq 141 ]; then return 0; else return $?; fi
+  $AWK -F ';' -f "$AWK_COMP_DIR/d2.awk" "$CSV_FILE" | sort -t ';' -k2 -nr | head -n 10
+  return $?
 }
 
 comp_l() {
-  $AWK -F ';' -f "$AWK_COMP_DIR/l.awk" "$CSV_FILE" | sort -k2,2nr | head -n 10 | sort -k1,1n
-  if [ $? -eq 141 ]; then return 0; else return $?; fi
+  $AWK -F ';' -f "$AWK_COMP_DIR/l.awk" "$CSV_FILE" | sort -t ';' -k2nr | head -n 10 | sort -t ';' -k1,1n
+  return $?
 }
 
 # Calls the adequate function for a computation. Also this is a separate function
@@ -224,11 +239,16 @@ comp_dispatch() {
       ;;
   esac
   RET=$?
+  # Mark SIGPIPE return values as a success, it just means that the sort command was interrupted by head.
+  if [ $RET -eq 141 ]; then
+    RET=0
+  fi;
+
   if [ $RET -ne 0 ]; then
     echo "[ Fin | Code d'erreur : $RET ]" >> "$err_file"
   else
     # Remove the empty error file if everything went fine.
-    rm "$err_file"
+    rm -f "$err_file"
   fi
   return $RET
 }
@@ -267,68 +287,20 @@ graph_err_file() {
   echo "$TEMP_DIR/graph_$comp.err" # Look closely, it's temp, not images!
 }
 
-graph_d1() {
-  local -r out_file="$(graph_out_file "d1")"
-  local -r in_file="$(comp_out_file "d1")"
-  gnuplot -c "$GNUPLOT_SCRIPTS_DIR/d1.gp" "$in_file" "$out_file"
-  return $?
-}
-
-graph_d2() {
-  local -r out_file="$(graph_out_file "d2")"
-  local -r in_file="$(comp_out_file "d2")"
-  gnuplot -c "$GNUPLOT_SCRIPTS_DIR/d2.gp" "$in_file" "$out_file"
-  return $?
-}
-
-graph_l() {
-  local -r out_file="$(graph_out_file "l")"
-  local -r in_file="$(comp_out_file "l")"
-  gnuplot -c "$GNUPLOT_SCRIPTS_DIR/l.gp" "$in_file" "$out_file"
-  return $?
-}
-
-graph_t() {
-  local -r out_file="$(graph_out_file "t")"
-  local -r in_file="$(comp_out_file "t")"
-  gnuplot -c "$GNUPLOT_SCRIPTS_DIR/t.gp" "$in_file" "$out_file"
-  return $?
-}
-
-graph_s() {
-  local -r out_file="$(graph_out_file "s")"
-  local -r in_file="$(comp_out_file "s")"
-  echo "TODO: Implement GnuPlot script for S" >&2
-  return 254
-}
-
 graph_dispatch() {
+  local ret
   local -r comp="$1"
-  local -r err_file="$(graph_err_file "$1")"
-  case "$comp" in
-      d1)
-        graph_d1 2> "$err_file"
-        ;;
-      d2)
-        graph_d2 2> "$err_file"
-        ;;
-      l)
-        graph_l 2> "$err_file"
-        ;;
-      t)
-        graph_t 2> "$err_file"
-        ;;
-      s)
-        graph_s 2> "$err_file"
-        ;;
-  esac
-  RET=$?
-  if [ $RET -ne 0 ]; then
-    echo "[ Fin | Code d'erreur : $RET ]" >> "$err_file"
+  local -r in_file="$(comp_out_file "$comp")"
+  local -r out_file="$(graph_out_file "$comp")"
+  local -r err_file="$(graph_err_file "$comp")"
+  gnuplot -c "$GNUPLOT_SCRIPTS_DIR/$comp.gp" "$in_file" "$out_file" 2> "$err_file"
+  ret=$?
+  if [ $ret -ne 0 ]; then
+    echo "[ Fin | Code d'erreur : $ret ]" >> "$err_file"
   else
-    rm "$err_file"
+    rm -f "$err_file"
   fi
-  return $RET
+  return $ret
 }
 
 # Draw the graph for each computation

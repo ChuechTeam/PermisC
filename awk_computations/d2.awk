@@ -3,5 +3,5 @@
 }
 END {
     for (c in drivers)
-        print c, drivers[c]
+        print c ";" drivers[c]
 }

@@ -4,5 +4,5 @@
 }
 END {
     for (driver in count)
-        print driver, count[driver]
+        print driver ";" count[driver]
 }

@@ -12,14 +12,14 @@ set xlabel "Villes"
 set title "Option -t : Nb routes = f (Villes)"
 set terminal pngcairo size 1314,1320
 set output ARG2
-myBoxWidth = 0.4
+# Use the ';' as the file separator
+set datafile separator ";"
 
 # Load from the input file
 datafile = ARG1
 set yrange [0:*]
 
 # First column using $1
-# Use the ';' as the file separator
-set datafile separator ";"
-plot datafile using ($2):xtic(sprintf("%s", strcol(1))) with boxes lc rgb 'green' title 'Total routes', \
-     '' using ($0+0.1):($3) with boxes lc rgb 'blue' title 'First town'
+
+plot datafile using ($2):xtic(sprintf("%s", strcol(1))) with boxes lc rgb 'green' title 'Trajets totaux', \
+     '' using ($0+0.1):($3) with boxes lc rgb 'blue' title 'Première ville'
