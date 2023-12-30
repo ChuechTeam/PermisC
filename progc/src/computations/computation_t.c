@@ -249,7 +249,7 @@ void computationT(RouteStream *stream)
 {
     int x=0;
     Town* T;
-    AVL1 *f = malloc(sizeof(File));
+    AVL1 *f = malloc(sizeof(AVL1));
     AVLT *A;
     A = NULL;
     f = NULL;
