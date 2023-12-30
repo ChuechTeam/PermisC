@@ -5,13 +5,7 @@
 #include "avl.h"
 #include <assert.h>
 
-typedef struct Driver
-{
-    char name[100];
-    struct Driver *next;
-} Driver;
-
-typedef struct ID
+typedef struct ID   //AVL d'ID
 {
     AVL_HEADER(ID)
     int iD;
@@ -23,24 +17,15 @@ typedef struct Town
     struct Town *next;
     int passed; // compteur
     ID *IDhead; // chaine d'ID
-    Driver *head; // chaine de chauffeurs
-    Driver *tail;
 } Town;
 
-typedef struct AVL1
+typedef struct AVL1 //AVL primaire
 {
     AVL_HEADER(AVL1)
     Town value;
 }AVL1;
 
-
-typedef struct File
-{
-    struct Town *head;
-    struct Town *tail;
-} File;
-
-typedef struct AVLT
+typedef struct AVLT //AVL principal
 {
     AVL_HEADER(AVLT);
     Town value;
@@ -48,7 +33,7 @@ typedef struct AVLT
 
 AVLT *IDCreate(int i)
 {
-    ID *A = malloc(sizeof(ID));
+    ID *A = malloc(sizeof(ID)); //création de l'AVL d'ID
     assert(A);
     A->iD = i;
     A->left = NULL;
@@ -57,7 +42,7 @@ AVLT *IDCreate(int i)
     return A;
 }
 
-int IDCompare(ID *A, int i)
+int IDCompare(ID *A, int i) //comparer les ID entre celui d'un chainon de l'AVL d'ID et celui d'une ville à ajouter dans l'avl
 {
     if (i > A->iD)
     {
@@ -86,7 +71,7 @@ int searchID(ID *h, int Id)
         {
             if(p1->iD<Id){
                  if(p1->left!=NULL){
-                    return searchID(p1->left, Id);
+                    return searchID(p1->left, Id);  //recherche de l'ID dans la partie droite du sous-arbre si plus grand
                  }
                  else{
                     return 0;
@@ -94,7 +79,7 @@ int searchID(ID *h, int Id)
             }
             if(p1->iD>Id){
                  if(p1->right!=NULL){
-                    return searchID(p1->right, Id);
+                    return searchID(p1->right, Id); //sinon la partie gauche si plus petit
                  }
                  else{
                     return 0;
@@ -167,17 +152,17 @@ AVL1 *supTown(AVL1 *f, Town *passage)
     else
     {
         if(f->right!=NULL){
-            f->right=supTown(f->right, passage);
+            f->right=supTown(f->right, passage);    //si il existe fils droit alors on cherche à suprrimer le fils droit
             return(f);
         }
 
         if(f->left!=NULL){
-            f->left=supTown(f->left, passage);
+            f->left=supTown(f->left, passage);  // s'il n'existe pas de fils droit mais qu'il existe un fils gauche alors on voir pour supprimer le fils gauche
             return(f);
         }
 
         else{
-            *passage = f->value; // sinon suppression du premier chainon (pour l'envoyer dans l'AVL)
+            *passage = f->value; // si aucun fils n'existe: suppression du premier chainon (pour l'envoyer dans l'AVL)
             f->value=(Town){0};
             free(f);
             return NULL;
@@ -188,7 +173,7 @@ AVL1 *supTown(AVL1 *f, Town *passage)
 
 AVL1 *AVL1Create(Town *T)
 {
-    AVL1 *A = malloc(sizeof(AVL1));
+    AVL1 *A = malloc(sizeof(AVL1)); //création d'un chainon de l'AVL temporaire
     assert(A);
     A->value = *T;
     A->left = NULL;
@@ -197,19 +182,19 @@ AVL1 *AVL1Create(Town *T)
     return A;
 }
 
-int AVL1Compare(AVLT *A, Town *T)//Id est l'Id de la ville à ajouter dans l'AVL
+int AVL1Compare(AVLT *A, Town *T)
 {
-    if (strcmp(A->value.name, T->name)<0)
+    if (strcmp(A->value.name, T->name)<0)   //si le nom est avant dans l'alphabet alors il ira à gauche
     {
         return -4;
     }
-    if (strcmp(A->value.name, T->name)>0)
+    if (strcmp(A->value.name, T->name)>0) //si le nom est après dans l'alphabet alors il ira à droite
     {
         return 1;
     }
     else
     {
-        if(searchID(A->value.IDhead, T->IDhead->iD)){
+        if(searchID(A->value.IDhead, T->IDhead->iD)){ //si le nom est le meme alors passage +1 si l'ID n'est pas déjà dans l'AVL d'ID
             A->value.passed+=1;
         }
         return 0;
@@ -218,7 +203,7 @@ int AVL1Compare(AVLT *A, Town *T)//Id est l'Id de la ville à ajouter dans l'AVL
 
 AVLT *AVLCreate(Town *T)
 {
-    AVLT *A = malloc(sizeof(AVLT));
+    AVLT *A = malloc(sizeof(AVLT)); //création du chainon de l'AVL
     assert(A);
     A->value = *T;
     A->left = NULL;
@@ -229,17 +214,17 @@ AVLT *AVLCreate(Town *T)
 
 int AVLCompare(AVLT *A, Town *T)
 {
-    if (T->passed > A->value.passed)
+    if (T->passed > A->value.passed)    //si le chainon est moins parcouru dans ce cas ce sera mis sur la gauche
     {
         return -4;
     }
-    if (T->passed < A->value.passed)
+    if (T->passed < A->value.passed) //si le chainon est plus parcouru dans ce cas ce sera mis sur la droite
     {
         return 1;
     }
     else
     {
-        return strcmp(A->value.name, T->name);
+        return strcmp(A->value.name, T->name);  // si c'est aussi parcouru ça dépend du nom de la ville
     }
 }
 
@@ -274,23 +259,23 @@ void computationT(RouteStream *stream)
         T = malloc(sizeof(Town));
         strcpy(T->name, step.townA);
         T->IDhead=malloc(sizeof(ID));
-        T->IDhead->iD=step.routeId;
+        T->IDhead->iD=step.routeId; //création d'un chainon ville pour l'envoyer dans l'avl primaire
         T->passed+=1;
         f = f = avlInsert(f, T, &AVL1Create, &AVL1Compare, NULL, NULL);
         T = malloc(sizeof(Town));
         T->IDhead=malloc(sizeof(ID));
         strcpy(T->name, step.townB);
-        T->IDhead->iD=step.routeId;
+        T->IDhead->iD=step.routeId;  //création d'un chainon ville pour l'envoyer dans l'avl primaire
         T->passed+=1;
         f = avlInsert(f, T, &AVL1Create, &AVL1Compare, NULL, NULL);
     }
 
     while (f!=NULL)
 {
-    f = supTown(f, T);
+    f = supTown(f, T);  //envoyer les chainons de l'avl primaire dans l'avl principal
     A = avlInsert(A, T, &AVLCreate, &AVLCompare, NULL, NULL);
     printf("%s\n", T->name);
 }
     free(f);
-    parcoursInfInv(A, &x);
+    parcoursInfInv(A, &x);  //lecture des 10 villes les plus parcourues dans l'ordre décroissant
 }
