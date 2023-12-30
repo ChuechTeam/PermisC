@@ -408,18 +408,18 @@ void computationD1(RouteStream* stream)
 
                 // Insert the driver into the AVL, or use the exisiting node.
                 StringAVL* driverNode;
-                drivers = stringAVLInsert(drivers, step.driverName, NULL, &driverNode, NULL);
+                driverNode = stringAVLLookup(drivers, step.driverName);
+                if (!driverNode)
+                {
+                    DriverData* newData = malloc(sizeof(DriverData));
+                    assert(newData);
+                    newData->routeCount = 0;
+
+                    drivers = stringAVLInsert(drivers, step.driverName, newData, &driverNode, NULL);
+                }
 
                 // Increment its routeCount value.
-                DriverData* data = driverNode->extraData;
-                if (data == NULL)
-                {
-                    data = driverNode->extraData = malloc(sizeof(DriverData));
-                    assert(data);
-
-                    data->routeCount = 0;
-                }
-                data->routeCount++;
+                ((DriverData*) driverNode->extraData)->routeCount++;
 
                 // Add it to the list of drivers involved in this route.
                 // Use the string located in the AVL since it is valid through the entire computation.

@@ -4,24 +4,32 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
+#include "delimiter_search.h"
 
 // 128 KB
 // After some profiling, it empirically works fast on my computer...
 #define READ_BUFFER_SIZE 128*1024
+
+// The slack needed for the delimiter search to work properly.
+#define READ_BUFFER_SLACK 64
 
 RouteStream rsOpen(const char* path)
 {
     RouteStream s;
     s.file = NULL;
     s.readBuf = NULL;
-    s.readBufPos = 0;
     s.readBufChars = 0;
     s.closed = false;
 
     FILE* file = fopen(path, "rb");
     s.file = file;
 
-    s.readBuf = malloc(READ_BUFFER_SIZE);
+    // Leave 64 bytes of slack for delimiter searching to work properly.
+    // Make sure the buffer is zeroed out, for extra safety
+    // especially for the slack which NEEDS to be zeroed.
+    s.readBuf = calloc(1, READ_BUFFER_SIZE + READ_BUFFER_SLACK);
+    s.readBufEnd = s.readBuf + READ_BUFFER_SIZE - 1;
+    s.readBufCursor = s.readBufEnd;
     // Checked later by rsCheck
 
     if (file)
@@ -75,8 +83,8 @@ bool continueBufferRead(RouteStream* stream)
 {
     assert(stream);
 
-    // Reset the position cursor.
-    stream->readBufPos = 0;
+    // Reset the position cursor and end.
+    stream->readBufCursor = stream->readBuf;
 
     uint32_t bytesRead = (uint32_t) fread(stream->readBuf, 1, READ_BUFFER_SIZE, stream->file);
     if (bytesRead == READ_BUFFER_SIZE)
@@ -102,6 +110,7 @@ bool continueBufferRead(RouteStream* stream)
         {
             stream->readBufChars = READ_BUFFER_SIZE;
         }
+        stream->readBufEnd = stream->readBuf + stream->readBufChars;
 
         return true;
     }
@@ -109,14 +118,32 @@ bool continueBufferRead(RouteStream* stream)
     {
         // No more characters, EOF! (Or error)
         stream->readBufChars = 0;
+        stream->readBufEnd = stream->readBuf;
+
         return false;
     }
     else // if (bytesRead < READ_BUFFER_SIZE)
     {
         // The buffer is not full, so we reached the end of the file.
-        // We have the room to add a newline character at the end, so let's do it.
-        stream->readBuf[bytesRead] = '\n';
-        stream->readBufChars = bytesRead + 1;
+
+        // Zero out the rest of the buffer to avoid overflow.
+        memset(stream->readBuf + bytesRead, 0, READ_BUFFER_SIZE - bytesRead);
+
+        if (stream->readBuf[bytesRead - 1] == '\n')
+        {
+            // There's already a newline character at the end, so we're good.
+            stream->readBufChars = bytesRead;
+            stream->readBufEnd = stream->readBuf + stream->readBufChars;
+        }
+        else
+        {
+            // There's no newline character before EOF, so we need to add one.
+            // We have the room to add a newline character at the end, so let's do it.
+            stream->readBuf[bytesRead] = '\n';
+
+            stream->readBufChars = bytesRead + 1;
+            stream->readBufEnd = stream->readBuf + stream->readBufChars;
+        }
 
         return true;
     }
@@ -134,78 +161,24 @@ bool continueBufferRead(RouteStream* stream)
  * either copying strings or temporary null terminations...
  *
  * Since we know the exact format of integers and floats, writing them is really easy.
- *
- * Each read function automatically skips the next semicolon for reading the next field.
  */
 
-uint32_t readUnsignedInt(RouteStream* stream)
-{
-    uint32_t number = 0;
-
-    char ch = stream->readBuf[stream->readBufPos];
-    while (ch != ';' && ch != '\n')
-    {
-        // Make sure it is a digit
-        assert(ch >= '0' && ch <= '9');
-
-        uint32_t digit = ch - '0';
-        number *= 10;
-        number += digit;
-
-        stream->readBufPos += 1;
-        ch = stream->readBuf[stream->readBufPos];
-    }
-
-    if (ch == ';')
-    {
-        stream->readBufPos++;
-    }
-
-    return number;
-}
-
-// Reads the next string in the CSV file from the stream.
-// The semicolon or newline character will be replaced by a null-terminator.
-char* readStr(RouteStream* stream)
-{
-    char* strStart = stream->readBuf + stream->readBufPos;
-
-    // Advance until we find a semicolon or a newline.
-    char ch = *strStart;
-    while (ch != ';' && ch != '\n')
-    {
-        stream->readBufPos++;
-        ch = stream->readBuf[stream->readBufPos];
-    }
-
-    // Mark the end of the string here.
-    stream->readBuf[stream->readBufPos] = '\0';
-
-    // Skip the semicolon.
-    if (ch == ';')
-    {
-        stream->readBufPos++;
-    }
-
-    return strStart;
-}
-
-float readUnsignedFloat(RouteStream* stream)
+float readUnsignedFloat(char* const start, char* const end)
 {
     uint32_t intPart = 0, decPart = 0;
     uint32_t decSize = 1;
 
     bool dec = false;
 
-    char ch = stream->readBuf[stream->readBufPos];
-    while (ch != ';' && ch != '\n')
+    char* cursor = start;
+    while (cursor != end)
     {
-        if (ch != '.')
+        if (*cursor != '.')
         {
             // Make sure it is a digit
-            assert(ch >= '0' && ch <= '9');
+            assert(*cursor >= '0' && *cursor <= '9');
 
-            uint32_t digit = ch - '0';
+            uint32_t digit = *cursor - '0';
             if (!dec)
             {
                 intPart *= 10;
@@ -224,30 +197,37 @@ float readUnsignedFloat(RouteStream* stream)
             dec = true;
         }
 
-        stream->readBufPos += 1;
-        ch = stream->readBuf[stream->readBufPos];
+        cursor++;
     }
 
-    float number = (float)intPart + (float)decPart / decSize;
+    return (float)intPart + (float)decPart / decSize;
+}
 
-    if (ch == ';')
+char* readStr(char* start, char* end)
+{
+    *end = '\0';
+
+    return start;
+}
+
+uint32_t readUnsignedInt(char* const start, char* const end)
+{
+    uint32_t number = 0;
+
+    char* cursor = start;
+
+    while (cursor != end)
     {
-        stream->readBufPos++;
+        // Make sure it is a digit
+        assert(*cursor >= '0' && *cursor <= '9');
+
+        uint32_t digit = *cursor - '0';
+        number *= 10;
+        number += digit;
+        cursor++;
     }
 
     return number;
-}
-
-void skipField(RouteStream* stream)
-{
-    while (stream->readBuf[stream->readBufPos] != ';' && stream->readBuf[stream->readBufPos] != '\n')
-    {
-        stream->readBufPos++;
-    }
-    if (stream->readBuf[stream->readBufPos] == ';')
-    {
-        stream->readBufPos++;
-    }
 }
 
 bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRead)
@@ -255,7 +235,7 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
     assert(outRouteStep);
     assert(stream && stream->valid);
 
-    if (stream->readBufPos == stream->readBufChars - 1 || stream->readBufChars == 0)
+    if (stream->readBufCursor >= stream->readBufEnd)
     {
         bool bufferSuccess = continueBufferRead(stream);
         if (!bufferSuccess)
@@ -264,44 +244,33 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
         }
     }
 
+    char* lineBegin = stream->readBufCursor;
+
+    // Find all the delimiters (the 5 semicolons and the new line character)
+    // searchDelimiters makes sure that the delimiters are in the right place
+    // (e.g. no newline as second delimiter), and that we aren't overflowing the buffer (zero checks).
+    char* delimiters[6];
+    searchDelimiters(lineBegin, delimiters);
+
     if (fieldsToRead & ROUTE_ID)
-        outRouteStep->routeId = readUnsignedInt(stream);
-    else
-        skipField(stream);
+        outRouteStep->routeId = readUnsignedInt(lineBegin, delimiters[0]);
 
     if (fieldsToRead & STEP_ID)
-        outRouteStep->stepId = readUnsignedInt(stream);
-    else
-        skipField(stream);
+        outRouteStep->stepId = readUnsignedInt(delimiters[0] + 1, delimiters[1]);
 
     if (fieldsToRead & TOWN_A)
-        outRouteStep->townA = readStr(stream);
-    else
-        skipField(stream);
+        outRouteStep->townA = readStr(delimiters[1] + 1, delimiters[2]);
 
     if (fieldsToRead & TOWN_B)
-        outRouteStep->townB = readStr(stream);
-    else
-        skipField(stream);
+        outRouteStep->townB = readStr(delimiters[2] + 1, delimiters[3]);
 
     if (fieldsToRead & DISTANCE)
-        outRouteStep->distance = readUnsignedFloat(stream);
-    else
-        skipField(stream);
+        outRouteStep->distance = readUnsignedFloat(delimiters[3] + 1, delimiters[4]);
 
     if (fieldsToRead & DRIVER_NAME)
-        outRouteStep->driverName = readStr(stream);
-    else
-        skipField(stream);
+        outRouteStep->driverName = readStr(delimiters[4] + 1, delimiters[5]);
 
-    // Can be replaced by a null character due to readStr
-    assert(stream->readBuf[stream->readBufPos] == '\0' || stream->readBuf[stream->readBufPos] == '\n');
-
-    // Advance to the next line
-    if (stream->readBufPos != stream->readBufChars - 1)
-    {
-        stream->readBufPos++;
-    }
+    stream->readBufCursor = delimiters[5] + 1;
 
     return true;
 }

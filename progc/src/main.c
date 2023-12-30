@@ -11,6 +11,7 @@
 #ifdef WIN32
 #include <windows.h>
 #endif
+#include <immintrin.h>
 
 int avlSize(const StringAVL* avl)
 {

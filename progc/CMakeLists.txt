@@ -28,5 +28,5 @@ if (MSVC)
 endif ()
 
 if (UNIX)
-    target_compile_options(PermisC PUBLIC -Wall -Wno-unused-function)
+    target_compile_options(PermisC PUBLIC -Wall -Wno-unused-function -mavx2)
 endif()

@@ -30,8 +30,13 @@ typedef struct RouteStream
     // The buffer contains multiple lines of the CSV file.
     // Each line is guaranteed to end with a '\n' character.
     char* readBuf;
+    // The current read position in the buffer.
+    // Set to readBufEnd when the buffer is empty OR when reaching the end of the buffer.
+    char* readBufCursor;
+    // The exclusive end of the buffer.
+    // Points to the character just after the last character of the buffer.
+    char* readBufEnd;
     uint32_t readBufChars; // The total number of characters in the buffer.
-    uint32_t readBufPos; // The current read position in the buffer.
 
     // True when the stream has a file open, and a buffer ready.
     bool valid;

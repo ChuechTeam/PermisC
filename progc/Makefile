@@ -9,12 +9,19 @@ CC ?= gcc
 # -D_POSIX_C_SOURCE=200112L: Enable POSIX functions (for profiling)
 # -g: Enable debug symbols
 # -Isrc: Add the src folder to the include path
-CFLAGS += -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc
+CFLAGS += -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc -mavx -mavx2
 
 # The optimization level, 1 to enable compiler optimizations.
 OPTIMIZE ?= 0
 ifeq ($(OPTIMIZE), 1)
 	CFLAGS += -Ofast -flto -msse4.2
+endif
+
+# Set to 1 to output assembly files in the build folder.
+ASM ?= 0
+ifeq ($(ASM), 1)
+	CFLAGS := $(filter-out -flto, $(CFLAGS))
+	ASM_CFLAGS := $(filter-out -g, $(CFLAGS)) -S -masm=intel -fverbose-asm
 endif
 
 # The output directory
@@ -55,6 +62,9 @@ make_build_dir:
 $(OUT)/%.o: src/%.c $(HEADER_FILES_F) | make_build_dir
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
+ifeq ($(ASM), 1)
+	@$(CC) $(ASM_CFLAGS) -c $< -o $(patsubst %.o, %.asm, $@)
+endif
 
 $(OUT)/PermisC: $(OBJ_FILES)
 	@echo "Linking PermisC..."
