@@ -141,7 +141,6 @@ bool continueBufferRead(RouteStream* stream)
 uint32_t readUnsignedInt(RouteStream* stream)
 {
     uint32_t number = 0;
-    uint32_t mult = 1;
 
     char ch = stream->readBuf[stream->readBufPos];
     while (ch != ';' && ch != '\n')
@@ -150,8 +149,8 @@ uint32_t readUnsignedInt(RouteStream* stream)
         assert(ch >= '0' && ch <= '9');
 
         uint32_t digit = ch - '0';
-        number += digit * mult;
-        mult *= 10;
+        number *= 10;
+        number += digit;
 
         stream->readBufPos += 1;
         ch = stream->readBuf[stream->readBufPos];
@@ -194,7 +193,7 @@ char* readStr(RouteStream* stream)
 float readUnsignedFloat(RouteStream* stream)
 {
     uint32_t intPart = 0, decPart = 0;
-    uint32_t multInt = 1, multDec = 1;
+    uint32_t decSize = 1;
 
     bool dec = false;
 
@@ -209,13 +208,14 @@ float readUnsignedFloat(RouteStream* stream)
             uint32_t digit = ch - '0';
             if (!dec)
             {
-                intPart += digit * multInt;
-                multInt *= 10;
+                intPart *= 10;
+                intPart += digit;
             }
             else
             {
-                decPart += digit * multDec;
-                multDec *= 10;
+                decPart *= 10;
+                decPart += digit;
+                decSize *= 10;
             }
         }
         else
@@ -228,7 +228,7 @@ float readUnsignedFloat(RouteStream* stream)
         ch = stream->readBuf[stream->readBufPos];
     }
 
-    float number = (float)intPart + (float)decPart / multDec;
+    float number = (float)intPart + (float)decPart / decSize;
 
     if (ch == ';')
     {
