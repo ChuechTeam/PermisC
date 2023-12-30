@@ -13,7 +13,7 @@ typedef struct Driver
 
 typedef struct ID
 {
-    AVL_HEADER(ID);
+    AVL_HEADER(ID)
     int iD;
 } ID;
 
@@ -29,7 +29,7 @@ typedef struct Town
 
 typedef struct AVL1
 {
-    AVL_HEADER(AVL1);
+    AVL_HEADER(AVL1)
     Town value;
 }AVL1;
 
@@ -76,7 +76,7 @@ int IDCompare(ID *A, int i)
 int searchID(ID *h, int Id)
 {
     ID *p1 = h;
-    while (p1 != NULL)
+    if (p1 != NULL)
     {
         if (p1->iD == Id) // Si l'ID existe dans la chaine
         {
@@ -101,8 +101,9 @@ int searchID(ID *h, int Id)
                  }
             }
         }
-    return 0; // sinon
+        return 0; // sinon
     }
+    return 0;
 }
 
 /*
@@ -166,12 +167,12 @@ AVL1 *supTown(AVL1 *f, Town *passage)
     else
     {
         if(f->right!=NULL){
-            f->right=supTown(f->right, &passage);
+            f->right=supTown(f->right, passage);
             return(f);
         }
 
         if(f->left!=NULL){
-            f->left=supTown(f->left, &passage);
+            f->left=supTown(f->left, passage);
             return(f);
         }
 
@@ -242,27 +243,26 @@ int AVLCompare(AVLT *A, Town *T)
     }
 }
 
-int parcoursInfInv(AVLT *A, int x)
+void parcoursInfInv(AVLT *A, int* x)
 {
-    if (A->right != NULL && x < 10)
+    if (A->right != NULL && *x < 10)
     {
-        x += parcoursInfInv(A->right,x);
+        parcoursInfInv(A->right,x);
     }
-    if (x < 10)
+    if (*x < 10)
     {
         printf("%s, %d\n", A->value.name, A->value.passed);
-        x += 1;
+        (*x)+=1;
     }
-    if (A->left != NULL && x < 10)
+    if (A->left != NULL && *x < 10)
     {
-        x += parcoursInfInv(A->left,x);
+        parcoursInfInv(A->left,x);
     }
-    return x;
 }
 
 void computationT(RouteStream *stream)
 {
-    int i = 0;
+    int x=0;
     Town* T;
     AVL1 *f = malloc(sizeof(File));
     AVLT *A;
@@ -275,15 +275,14 @@ void computationT(RouteStream *stream)
         strcpy(T->name, step.townA);
         T->IDhead=malloc(sizeof(ID));
         T->IDhead->iD=step.routeId;
+        T->passed+=1;
         f = f = avlInsert(f, T, &AVL1Create, &AVL1Compare, NULL, NULL);
         T = malloc(sizeof(Town));
         T->IDhead=malloc(sizeof(ID));
         strcpy(T->name, step.townB);
         T->IDhead->iD=step.routeId;
+        T->passed+=1;
         f = avlInsert(f, T, &AVL1Create, &AVL1Compare, NULL, NULL);
-        i += 1;
-        if (i== 100)
-            break;
     }
 
     while (f!=NULL)
@@ -293,5 +292,5 @@ void computationT(RouteStream *stream)
     printf("%s\n", T->name);
 }
     free(f);
-    parcoursInfInv(A,0);
+    parcoursInfInv(A, &x);
 }
