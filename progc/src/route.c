@@ -248,7 +248,7 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
 
     // Find all the delimiters (the 5 semicolons and the new line character)
     // searchDelimiters makes sure that the delimiters are in the right place
-    // (e.g. no newline as second delimiter), and that we aren't overflowing the buffer (zero checks).
+    // (e.g. no newline as second delimiter), and that we aren't overflowing the buffer (zero/newline checks).
     char* delimiters[6];
     searchDelimiters(lineBegin, delimiters);
 

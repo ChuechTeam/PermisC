@@ -7,6 +7,11 @@
 #include "string_avl.h"
 #include "profile.h"
 
+// Make the algorithm configurable at compile time: use a hash-based and open-addressed map or an AVL.
+#ifndef D1_USE_MAP
+    #define D1_USE_MAP 0
+#endif
+
 // Computation D1
 // ------------------------
 // We need to find the 10 drivers who have driven the most routes.
@@ -52,9 +57,10 @@ void llStrAdd(LLStr* list, char* value)
     }
 }
 
+#if D1_USE_MAP
 /*
  * ------------
- * ROUTE MAP: A hash map of routes to their drivers.
+ * [Experimental!] ROUTE MAP: A hash map of routes to their drivers.
  * ------------
  */
 
@@ -193,10 +199,12 @@ void routeMapFree(RouteMap* map, RouteMapValueDestructFunc destruct)
         }
     }
 }
+#endif
 
+#if !D1_USE_MAP
 /*
  * ------------
- * ROUTE AVL (KEPT FOR REFERENCE, IT IS NOT USED ANYMORE IN THIS BRANCH!)
+ * ROUTE AVL
  * ------------
  */
 
@@ -237,7 +245,7 @@ int routeAVLCompare(const RouteAVL* a, const int* routeId)
 // Declare the routeAVLInsert function.
 AVL_DECLARE_INSERT_FUNCTION(routeAVLInsert, RouteAVL, int,
                             (AVLCreateFunc) &routeAVLCreate, (AVLCompareValueFunc) &routeAVLCompare)
-
+#endif
 /*
  * ------------
  * DRIVER SORT AVL
@@ -323,34 +331,22 @@ void printTop10Drivers(const DriverSortAVL* node, int* n);
 
 void freeBestDriversAVL(DriverSortAVL* node);
 
+#if D1_USE_MAP
+void freeRouteMapValue(LLStr* val);
+#else
 void freeRoutesAVL(RouteAVL* node);
-
-void freeRouteMapValue(LLStr* val)
-{
-    if (!val)
-    {
-        return;
-    }
-
-    // Free the allocated linked list nodes (second and later).
-    // We do not need to free the strings as they are in the drivers AVL, which will be freed later on.
-    LLStr* it = val->next;
-    while (it != NULL)
-    {
-        LLStr* next = it->next;
-        free(it);
-        it = next;
-    }
-}
+#endif
 
 void computationD1(RouteStream* stream)
 {
+#if !D1_USE_MAP
     // The intermediate AVL containing all routes, for lookup.
     // Each route in this AVL holds a list of all drivers who have already drove this route.
     //
     // You can think of it as a dictionary, or a function/map:
     //     f(routeId) -> [driverName1, driverName2, ...]
-    //RouteAVL* routes = NULL;
+    RouteAVL* routes = NULL;
+#endif
 
     // The AVL containing all drivers by their name, with the number of routes they have taken
     // (in extraData, with the DriverData struct), for lookup.
@@ -363,9 +359,11 @@ void computationD1(RouteStream* stream)
     //    f(driverName) -> routeCount
     StringAVL* drivers = NULL;
 
-    // Replaces the AVL method.
+#if D1_USE_MAP
+    // A map linking each route to a list of drivers.
     RouteMap map;
     routeMapInit(&map, 256, 0.5f);
+#endif
 
     // Phase 1: Read all the route steps
     // ------------------------------------------
@@ -377,16 +375,20 @@ void computationD1(RouteStream* stream)
         RouteStep step;
         while (rsRead(stream, &step, ROUTE_ID | DRIVER_NAME))
         {
-            // Insert the route into the route AVL, or find the existing node.
-            //RouteAVL* routeInfo = NULL;
-            //routes = routeAVLInsert(routes, &step.routeId, &routeInfo, NULL);
-
+#if D1_USE_MAP
             LLStr* driversInRoute = routeMapLookup(&map, step.routeId);
             if (!driversInRoute)
             {
                 LLStr list = {NULL, NULL};
                 driversInRoute = routeMapInsert(&map, step.routeId, &list);
             }
+#else
+            // Insert the route into the route AVL, or find the existing node.
+            RouteAVL* routeInfo = NULL;
+            routes = routeAVLInsert(routes, &step.routeId, &routeInfo, NULL);
+
+            LLStr* driversInRoute = &routeInfo->drivers;
+#endif
 
             // Has the driver already been seen on this route?
             bool driverAlreadySeen = false;
@@ -462,14 +464,16 @@ void computationD1(RouteStream* stream)
         // other than its child nodes it has nothing else to free.
         freeBestDriversAVL(bestDrivers);
 
+#if D1_USE_MAP
         routeMapFree(&map, &freeRouteMapValue);
-
+#else
         // The routes AVL needs to free all of its nodes,
         // and all of the linked lists in those nodes as well.
         //
         // The strings in the linked lists do not need to be freed because they
         // belong to the drivers AVL, which we're going to free just after.
-        //freeRoutesAVL(routes);
+        freeRoutesAVL(routes);
+#endif
 
         // Finally, the drivers AVL can be freed using the stringAVLFree function,
         // which is going to free all the nodes and all the extraData we've allocated.
@@ -534,6 +538,25 @@ void freeBestDriversAVL(DriverSortAVL* node)
     free(node);
 }
 
+#if D1_USE_MAP
+void freeRouteMapValue(LLStr* val)
+{
+    if (!val)
+    {
+        return;
+    }
+
+    // Free the allocated linked list nodes (second and later).
+    // We do not need to free the strings as they are in the drivers AVL, which will be freed later on.
+    LLStr* it = val->next;
+    while (it != NULL)
+    {
+        LLStr* next = it->next;
+        free(it);
+        it = next;
+    }
+}
+#else
 // Free every node of the RouteAVL, and also free its linked list.
 void freeRoutesAVL(RouteAVL* node)
 {
@@ -557,3 +580,4 @@ void freeRoutesAVL(RouteAVL* node)
 
     free(node);
 }
+#endif

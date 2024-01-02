@@ -1,7 +1,8 @@
 # The makefile for PermisC. Lean and simple!
 
 # Set a default C compiler: gcc
-CC ?= gcc
+export CC ?= gcc
+
 # Set the compiler flags:
 # -std=c11: Use the C11 standard
 # -Wall: Enable all warnings (by default there are like nearly none)
@@ -9,16 +10,33 @@ CC ?= gcc
 # -D_POSIX_C_SOURCE=200112L: Enable POSIX functions (for profiling)
 # -g: Enable debug symbols
 # -Isrc: Add the src folder to the include path
-CFLAGS += -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc -mavx -mavx2
+export CFLAGS += -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc
 
 # The optimization level, 1 to enable compiler optimizations.
-OPTIMIZE ?= 0
+export OPTIMIZE ?= 0
 ifeq ($(OPTIMIZE), 1)
-	CFLAGS += -Ofast -flto -msse4.2
+	# -Ofast: Enable ALL optimizations
+	# -flto: Enable link-time optimizations (functions defined in .c files can be inlined)
+	# -msse4.1: Enable SSE4.1 instructions
+	#           (the compiler can make use of it. requires a SSE4.1 processor, so 2008+ which is enough)
+	CFLAGS += -Ofast -flto -msse4.1
+endif
+
+# Set to 1 to enable advanced experimental algorithms for some computations
+export EXPERIMENTAL_ALGO ?= 0
+ifeq ($(EXPERIMENTAL_ALGO), 1)
+	CFLAGS += -DD1_USE_MAP=1
+endif
+
+# Set to 1 to enable advanced experimental algorithms that use AVX2
+# Requires an AVX2 processor.
+export EXPERIMENTAL_ALGO_AVX ?= 0
+ifeq ($(EXPERIMENTAL_ALGO_AVX), 1)
+	CFLAGS += -mavx2
 endif
 
 # Set to 1 to output assembly files in the build folder.
-ASM ?= 0
+export ASM ?= 0
 ifeq ($(ASM), 1)
 	CFLAGS := $(filter-out -flto, $(CFLAGS))
 	ASM_CFLAGS := $(filter-out -g, $(CFLAGS)) -S -masm=intel -fverbose-asm
@@ -51,6 +69,16 @@ $(info Compiler optimizations: Enabled)
 else
 $(info Compiler optimizations: Disabled (Use OPTIMIZE=1 to enable them))
 endif
+ifeq ($(EXPERIMENTAL_ALGO), 1)
+$(info Experimental algorithms: Enabled)
+else
+$(info Experimental algorithms: Disabled (Use EXPERIMENTAL_ALGO=1 to enable them))
+endif
+ifeq ($(EXPERIMENTAL_ALGO_AVX), 1)
+$(info Experimental AVX2 algorithms: Enabled)
+else
+$(info Experimental AVX2 algorithms: Disabled (Use EXPERIMENTAL_ALGO_AVX=1 to enable them))
+endif
 $(info -------------------------------)
 endif
 
@@ -70,18 +98,13 @@ $(OUT)/PermisC: $(OBJ_FILES)
 	@echo "Linking PermisC..."
 	@$(CC) $(CFLAGS) $^ -o $@
 
-.PHONY: build clean
+.PHONY: build clean check_vars
 build:
-	@# Do a test check to see if the optimized_build file exists.\
-    # The test returns 0 when it succeeded, so we need to invert it with the exclamation mark (!)\
-	! [ -e "$(OUT)/optimized_build" ]; PREVIOUS_BUILD_OPTIMIZED=$$?; \
-	# Clear the build folder when requested, or when the optimization level changed.\
-	if [ "$(CLEAN)" = 1 ] || [ "$(OPTIMIZE)" -ne $$PREVIOUS_BUILD_OPTIMIZED ]; then\
+	@# Use the build_vars.sh script to know if we need to recompile or not.\
+	if [ "$(CLEAN)" = 1 ] || ! bash build_vars.sh check $(OUT)/build_vars; then\
 		$(MAKE) --quiet clean BANNER=0;\
 	fi
-ifeq ($(OPTIMIZE), 1) # Create the file indicating that we've done an optimized build.
-	@mkdir -p $(OUT) && touch $(OUT)/optimized_build
-endif
+	@bash build_vars.sh update $(OUT)/build_vars
 	@$(MAKE) --quiet "$(OUT)/PermisC" BANNER=0
 
 clean:
@@ -95,3 +118,6 @@ clean:
  		else find "$(OUT)" -mindepth 1 -delete; fi;\
  	fi
 	@echo "Build folder cleaned up!"
+
+check_vars:
+	@./build_vars.sh check $(OUT)/build_vars

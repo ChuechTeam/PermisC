@@ -47,6 +47,6 @@ static int64_t nanos()
 }
 
 #define PROFILER_START(name) int64_t pstart_ = nanos(); const char* pname_ = name;
-#define PROFILER_END() int64_t pend_ = nanos(); printf("[PROFILER] %s: %lld µs\n", pname_, (long long)(pend_ - pstart_)/1000);
+#define PROFILER_END() int64_t pend_ = nanos(); fprintf(stderr, "[PROFILER] %s: %lld µs\n", pname_, (long long)(pend_ - pstart_)/1000);
 
 #endif //PROFILE_H

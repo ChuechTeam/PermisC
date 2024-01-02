@@ -39,8 +39,8 @@ for arg in "$@"; do
     echo "  -l             Lancer le traitement L : les trajets les plus longs"
     echo "  -t             Lancer le traitement T : les villes les plus traversées"
     echo "  -s             Lancer le traitement S : les statistiques sur la distance des trajets"
-    echo "  --experimental-compute   Utiliser des implémentations expérimentales de calcul (au lieu de awk)"
-    echo "                           plus rapides pour certains traitements: seulement D1 pour le moment."
+    echo "  --quick-compute   Utiliser des implémentations avancées de calcul (au lieu de awk)"
+    echo "                    plus rapides pour certains traitements: seulement D1 pour le moment."
     echo "Variables d'environnement:"
     echo "  AWK : Le chemin vers l'exécutable awk. Par défaut, « awk »."
     echo "  CLEAN : Force la recompilation de l'exécutable PermisC si sa valeur est 1."
@@ -153,10 +153,17 @@ fi
 mkdir -p "$TEMP_DIR"
 mkdir -p "$IMAGES_DIR"
 
-# Compile the PermisC executable if it doesn't exist. Output the build to the temp folder.
-CLEAN=${CLEAN:-0} # Set a default for the CLEAN variable
-export CLEAN # Propagate the CLEAN variable to the make command.
-if [ ! -f "$PERMISC_EXEC" ] || [ "$CLEAN" -eq 1 ]; then
+# Setup variables for the make build.
+export OPTIMIZE=1 # Force an optimized build. We don't need debugging for this script!
+export CLEAN=${CLEAN:-0} # Allow the user to configure the CLEAN variable, defaulting to 0.
+export EXPERIMENTAL_ALGO=${EXPERIMENTAL_ALGO:-0} # Allow user config.
+export EXPERIMENTAL_ALGO_AVX=${EXPERIMENTAL_ALGO_AVX:-0} # Allow user config.
+
+# Compile the PermisC executable if one of these conditions is true:
+# - There's no executable
+# - The build variables have changed (if the user wants some experimental algorithms, for example)
+# - The user wants to force a recompilation (using the CLEAN variable)
+if [ ! -f "$PERMISC_EXEC" ] || ! make -C "$PROGC_DIR" check_vars > /dev/null 2>&1 || [ "$CLEAN" -eq 1 ]; then
   echo -n "Compilation de l'exécutable PermisC..."
   if ! make -C "$PROGC_DIR" --no-print-directory build OPTIMIZE=1 > "$TEMP_DIR/build.log"; then
     echo " Échec !"
