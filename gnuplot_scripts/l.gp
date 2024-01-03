@@ -20,7 +20,7 @@ unset key             # turn off all titles
 myBoxWidth = 0.8
 
 # x y dx dy
-plot "<awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' ".ARG1 using\
+plot "<awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' \"".ARG1."\"" using\
     0:\
     ($2):\
     (myBoxWidth/2.):\

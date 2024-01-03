@@ -23,7 +23,7 @@ myBoxWidth = 0.8
 set offsets 0,0,0.5-myBoxWidth/2.,0.5
 
 # x y dx dy
-plot "<awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' ".ARG1 using\
+plot "<awk -F ';' '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' \"".ARG1."\"" using\
     (0.5*$2):\
     0:\
     (0.5*$2):\

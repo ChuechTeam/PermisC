@@ -76,3 +76,6 @@ temp/
 
 # Clang cache folders
 **/.cache
+
+# Mac stuff
+**/.DS_Store

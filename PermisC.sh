@@ -262,7 +262,9 @@ for comp in "${COMPUTATIONS[@]}"; do
   # Seconds and nanoseconds concatenated make a fixed-point decimal number
   TIME_START="$(date +%s%N)"
   if ! comp_dispatch "$comp"; then
-    ERR_FILE="$(realpath --relative-to="$(pwd)" "$(comp_err_file "$comp")")"
+    # TEMPORARY: Doesn't work on mac os
+    # ERR_FILE="$(realpath --relative-to="$(pwd)" "$(comp_err_file "$comp")")"
+    ERR_FILE="$(realpath "$(comp_err_file "$comp")")"
     echo " Échec !"
     echo "Erreur lors du traitement $COMP_NAME. Lisez le fichier $ERR_FILE pour plus de détails." >&2
     exit 3
@@ -308,7 +310,9 @@ echo "Génération des graphiques..."
 for comp in "${COMPUTATIONS[@]}"; do
   if ! graph_dispatch "$comp"; then
     COMP_NAME=${comp^^}
-    ERR_FILE="$(realpath --relative-to="$(pwd)" "$(graph_err_file "$comp")")"
+    # TEMPORARY: Doesn't work on mac os
+    # ERR_FILE="$(realpath --relative-to="$(pwd)" "$(graph_err_file "$comp")")"
+    ERR_FILE="$(realpath "$(graph_err_file "$comp")")"
     echo "Erreur lors de la génération du graphique du traitement $COMP_NAME. Lisez le fichier $ERR_FILE pour plus de détails." >&2
     exit 4
   fi
