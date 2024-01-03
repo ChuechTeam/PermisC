@@ -17,6 +17,21 @@ set -e
 # Exit the script if any variable is undefined.
 set -u
 
+if [ ! -v BASH_VERSINFO ]; then
+  echo "Ce script doit être lancé avec bash." >&2
+  exit 1
+fi
+
+# Put the script in "compatibility mode" when we're running on an old version of bash,
+# or some UNIX OS other than GNU/Linux.
+# Some commands don't work on Mac OS for example, and some bash features are missing,
+# so we need to adjust stuff for it to just work.
+if [[ "$OSTYPE" != "linux-gnu"* ]] || (( BASH_VERSINFO[0] < 4 )) || [ "${COMPAT_MODE:-0}" -eq 1 ]; then
+  echo "Attention : mode de compatibilité activé ! (Bash < 4 ou OS autre que GNU/Linux)" >&2
+  COMPAT_MODE=1
+else
+  COMPAT_MODE=0
+fi
 
 # ----------------------------------------------
 # Phase 1: Argument checking, parsing and help
@@ -25,25 +40,39 @@ set -u
 # First see if we have any help argument. If so, print help and exit.
 for arg in "$@"; do
   if [ "${arg}" = "-h" ] || [ "${arg}" = "--help" ]; then
-    echo "PermisC, le programme de traitement approuvé par Marcel"
-    echo "Utilisation : ./PermisC.sh FICHIER <-d1|-d2|-l|-t|-s>..."
-    echo "                                   [--experimental-compute]"
-    echo "              avec FICHIER un fichier CSV valide."
-    echo "Lit le fichier CSV des trajets et effectue tous les traitements demandés."
-    echo "Les graphiques seront créés dans le dossier « images »."
-    echo ""
-    echo "Options :"
-    echo "  -h, --help     Afficher l'aide"
-    echo "  -d1            Lancer le traitement D1 : les conducteurs avec le plus de trajets"
-    echo "  -d2            Lancer le traitement D2 : les conducteurs avec la plus grande distance parcourue"
-    echo "  -l             Lancer le traitement L : les trajets les plus longs"
-    echo "  -t             Lancer le traitement T : les villes les plus traversées"
-    echo "  -s             Lancer le traitement S : les statistiques sur la distance des trajets"
-    echo "  --quick-compute   Utiliser des implémentations avancées de calcul (au lieu de awk)"
-    echo "                    plus rapides pour certains traitements: seulement D1 pour le moment."
-    echo "Variables d'environnement:"
-    echo "  AWK : Le chemin vers l'exécutable awk. Par défaut, « awk »."
-    echo "  CLEAN : Force la recompilation de l'exécutable PermisC si sa valeur est 1."
+    ORANGE="\033[38;5;208m" # Orange color
+    UL_ON="\033[4m" # Underline on
+    UL_OFF="\033[24m" # Underline off
+    RESET="\033[0m" # Reset everything
+    echo -e \
+"PermisC, le programme de traitement approuvé par Marcel
+Utilisation : ./PermisC.sh FICHIER <-d1|-d2|-l|-t|-s>...
+                                   [options]
+              avec FICHIER un fichier CSV valide.
+Lit le fichier CSV des trajets et effectue tous les traitements demandés.
+Les graphiques seront créés dans le dossier « images ».
+Options :
+  -h, --help                Afficher l'aide
+  -d1                       Lancer le traitement D1 : les conducteurs avec le plus de trajets
+  -d2                       Lancer le traitement D2 : les conducteurs avec la plus grande distance parcourue
+  -l                        Lancer le traitement L : les trajets les plus longs
+  -t                        Lancer le traitement T : les villes les plus traversées
+  -s                        Lancer le traitement S : les statistiques sur la distance des trajets
+  -Q, --quick [n]           Utiliser des implémentations natives de calcul (au lieu de awk) plus rapides
+                            pour le traitement D1, de plus en plus avancées selon le niveau choisi :
+                                0 : Utiliser awk si possible
+                                1 : Utiliser les implémentations basiques en C (AVL uniquement)
+                                2 : Utiliser les implémentations avancées en C (table de hachage, expérimental !)
+                                3 : Utiliser les implémentations très avancées en C (SSE/AVX, ultra expérimental !)
+                            Un changement de niveau requiert une recompilation du programme.
+  -X, --experimental        Équivalent à --quick 2.
+  -E, --exceed-speed-limits Équivalent à --quick 3.
+                            ${ORANGE}${UL_ON}Attention${UL_OFF} : Cette option ajoute des propulseurs surpuissants à votre camion
+                                        et vous expose à une amende pour excès de vitesse sur l'autoroute !!
+$RESET
+Variables d'environnement :
+  AWK : Le chemin vers l'exécutable awk. Par défaut, « awk ».
+  CLEAN : Force la recompilation de l'exécutable PermisC si sa valeur est 1."
     exit 0
   fi
 done
@@ -80,7 +109,7 @@ else
 fi
 
 COMPUTATIONS=()
-EXPERIMENTAL_COMPUTE=0
+QUICK_LEVEL=0
 
 # Adds a computation to the COMPUTATIONS array, while ignoring duplicates.
 add_computation() {
@@ -94,30 +123,60 @@ add_computation() {
   COMPUTATIONS+=("$comp")
 }
 
+# Checks if the string is an unsigned integer.
+# Taken from: https://stackoverflow.com/a/61835747/5816295
+is_number() {
+  case $1 in ''|*[!0-9]*) return 1;;esac;
+}
+
 # Put all computations in the COMPUTATIONS array, and parse other arguments as well.
 for (( i=2; i<=$#; i++ )); do
   arg=${!i}
-  if [ "$arg" = "-d1" ]; then
-    add_computation "d1"
-  elif [ "$arg" = "-d2" ]; then
-    add_computation "d2"
-  elif [ "$arg" = "-l" ]; then
-    add_computation "l"
-  elif [ "$arg" = "-t" ]; then
-    add_computation "t"
-  elif [ "$arg" = "-s" ]; then
-    add_computation "s"
-  elif [ "$arg" = "--experimental-compute" ]; then
-    EXPERIMENTAL_COMPUTE=1
-  elif [[ "$arg" = "-"* ]]; then
-    echo "Option « $arg » inconnue. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
-    exit 1
-  else
-    echo "Un seul fichier peut être donné à la fois. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
-    exit 1
-  fi
+  case "$arg" in
+  -d1|-d2|-l|-t|-s)
+      add_computation "${arg:1}" ;;
+  --quick|-Q*)
+      # Parse the quickness level.
+      NEXT=$(( i+1 )); SKIP_NEXT=0
+      if [[ "$arg" = "-Q"* ]]; then
+        # Try using the number in the argument (like in -Q2 for example)
+        QL_STR="${arg:2}"
+      fi
+      if ! is_number "${QL_STR:-}" && (( i != $# )); then
+        QL_STR="${!NEXT}"
+        SKIP_NEXT=1
+      fi
+      if is_number "${QL_STR:-}"; then
+        QUICK_LEVEL="$QL_STR"
+        if [ $SKIP_NEXT -eq 1 ]; then
+          i=NEXT
+        fi
+      else
+        QUICK_LEVEL=1
+      fi ;;
+  --experimental|-X)
+      QUICK_LEVEL=2 ;;
+  --exceed-speed-limits|--excès-de-vitesse|-E) # Little easter egg
+      QUICK_LEVEL=3 ;;
+  -*)
+      echo "Option « $arg » inconnue. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+      exit 1 ;;
+  *)
+      echo "Un seul fichier peut être donné à la fois. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+      exit 1 ;;
+  esac
 done
 
+if [ "${#COMPUTATIONS[@]}" -eq 0 ]; then
+  echo "Un argument de traitement est requis. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+  exit 1
+fi
+
+# Prepare some handy variables for handling quickness levels.
+# QLx is equal to 1 if QUICK_LEVEL >= x, and 0 otherwise.
+QL1=$(( QUICK_LEVEL >= 1 ))
+QL2=$(( QUICK_LEVEL >= 2 ))
+QL3=$(( QUICK_LEVEL >= 3 ))
 
 # ----------------------------------------------
 # Phase 2: Make compilation and folder setup
@@ -148,24 +207,31 @@ fi
 
 # Setup the default folders: temp and images. Clear the temp folder beforehand.
 if [ -d "$TEMP_DIR" ]; then
-  rm -r "$TEMP_DIR"
+  rm -rf "$TEMP_DIR" # Ignore failures if we can't delete the folder or some annoying file.
 fi
 mkdir -p "$TEMP_DIR"
 mkdir -p "$IMAGES_DIR"
 
-# Setup variables for the make build.
-export OPTIMIZE=1 # Force an optimized build. We don't need debugging for this script!
-export CLEAN=${CLEAN:-0} # Allow the user to configure the CLEAN variable, defaulting to 0.
-export EXPERIMENTAL_ALGO=${EXPERIMENTAL_ALGO:-0} # Allow user config.
-export EXPERIMENTAL_ALGO_AVX=${EXPERIMENTAL_ALGO_AVX:-0} # Allow user config.
+# Setup variables for the make build, depending on the quickness level.
+
+# Force an optimized build. We don't need debugging for this script! (But leave it configurable)
+export OPTIMIZE=${OPTIMIZE:-1}
+# Use native optimizations by default (-march=native), we aren't going to distribute the executable anyway.
+export OPTIMIZE_NATIVE=${OPTIMIZE_NATIVE:-1}
+# Allow the user to configure the CLEAN variable, defaulting to 0.
+export CLEAN=${CLEAN:-0}
+# Enable experimental algorithms for QUICK_LEVEL >= 2.
+export EXPERIMENTAL_ALGO=${EXPERIMENTAL_ALGO:-$QL2}
+# Enable experimental AVX stuff for QUICK_LEVEL >= 3.
+export EXPERIMENTAL_ALGO_AVX=${EXPERIMENTAL_ALGO_AVX:-$QL3}
 
 # Compile the PermisC executable if one of these conditions is true:
 # - There's no executable
-# - The build variables have changed (if the user wants some experimental algorithms, for example)
+# - The build variables have changed (if the quickness level changed, we need to recompile)
 # - The user wants to force a recompilation (using the CLEAN variable)
 if [ ! -f "$PERMISC_EXEC" ] || ! make -C "$PROGC_DIR" check_vars > /dev/null 2>&1 || [ "$CLEAN" -eq 1 ]; then
   echo -n "Compilation de l'exécutable PermisC..."
-  if ! make -C "$PROGC_DIR" --no-print-directory build OPTIMIZE=1 > "$TEMP_DIR/build.log"; then
+  if ! make -C "$PROGC_DIR" --no-print-directory build > "$TEMP_DIR/build.log" 2>&1; then
     echo " Échec !"
     echo "Erreur lors de la compilation de PermisC. Lisez le fichier temp/build.log pour plus de détails." >&2
     exit 2
@@ -190,13 +256,51 @@ comp_err_file() {
   echo "$TEMP_DIR/result_$comp.err"
 }
 
-# Allow the user to use a custom awk executable (like mawk), and throw if it doesn't exist.
-# TODO: Only check when we're using an awk-based computation?
+# Basically tries to put the computation name in uppercase.
+comp_name() {
+  if [ $COMPAT_MODE -eq 0 ]; then
+    local val="$1"
+    echo "${val^^}"
+  else
+    # Try to use tr for this instead.
+    if ! echo "$1" | tr '[:lower:]' '[:upper:]' 2> /dev/null; then
+      # Oh my god really? I give up.
+      echo "$1"
+    fi
+  fi
+}
+
+# Returns the current time in seconds+nanoseconds as a fixed-point decimal.
+# Precision can be lower on not-really-supported systems.
+measure_time() {
+  if [ $COMPAT_MODE -eq 0 ]; then
+    date +%s%N
+  else
+    # Nanoseconds are not available on Mac OS, so we try to use perl, or just seconds if it fails.
+    # Taken from: https://stackoverflow.com/a/15328160/5816295 (i hope it works?) (i adjusted it)
+    local nanos
+    if ! nanos=$(perl -MTime::HiRes -e 'printf("%.0f\n",Time::HiRes::time()*1000000000)' 2> /dev/null); then
+      nanos=$(( $(date +%s) * 1000000000 ))
+    fi;
+    echo "$nanos"
+  fi
+}
+
+# Prints the path to the file, relative to the current directory.
+simple_path() {
+  if [ $COMPAT_MODE -eq 0 ]; then
+    realpath --relative-to="$(pwd)" "$1"
+  else
+    echo "$1"
+  fi
+}
+
+# Allow the user to use a custom awk executable, and use mawk by default, if possible.
 if [ ! -v AWK ]; then
   if type mawk > /dev/null 2>&1; then
-    AWK=mawk
+    AWK="mawk"
   else
-    AWK=awk
+    AWK="awk"
   fi
 fi
 if ! type "$AWK" > /dev/null 2>&1; then
@@ -210,7 +314,7 @@ fi
 # which we arguably don't care. (Sorry to break sort's feelings...)
 
 comp_d1() {
-  if [ "$EXPERIMENTAL_COMPUTE" -eq 1 ]; then
+  if [ $QL1 -eq 1 ]; then
     "$PERMISC_EXEC" -d1 "$CSV_FILE"
   else
     $AWK -F ';' -f "$AWK_COMP_DIR/d1.awk" "$CSV_FILE" | LC_ALL=C sort -t ';' -k2nr -S 50% | head -n 10
@@ -269,20 +373,18 @@ comp_dispatch() {
 # Iterate through all the computations, and run them one by one.
 # Also measure the time it takes to run each computation.
 for comp in "${COMPUTATIONS[@]}"; do
-  COMP_NAME=${comp^^} # Uppercase the computation name
+  COMP_NAME=$(comp_name "$comp") # Uppercase the computation name
   echo -n "Traitement $COMP_NAME en cours..."
 
   # Seconds and nanoseconds concatenated make a fixed-point decimal number
-  TIME_START="$(date +%s%N)"
+  TIME_START="$(measure_time)"
   if ! comp_dispatch "$comp"; then
-    # TEMPORARY: Doesn't work on mac os
-    # ERR_FILE="$(realpath --relative-to="$(pwd)" "$(comp_err_file "$comp")")"
-    ERR_FILE="$(realpath "$(comp_err_file "$comp")")"
+    ERR_FILE="$(simple_path "$(comp_err_file "$comp")")"
     echo " Échec !"
     echo "Erreur lors du traitement $COMP_NAME. Lisez le fichier $ERR_FILE pour plus de détails." >&2
     exit 3
   fi
-  TIME_END="$(date +%s%N)"
+  TIME_END="$(measure_time)"
   ELAPSED_MS=$(( (TIME_END - TIME_START)/1000000 ))
   echo " Terminé en $ELAPSED_MS ms !"
 done
@@ -322,10 +424,8 @@ graph_dispatch() {
 echo "Génération des graphiques..."
 for comp in "${COMPUTATIONS[@]}"; do
   if ! graph_dispatch "$comp"; then
-    COMP_NAME=${comp^^}
-    # TEMPORARY: Doesn't work on mac os
-    # ERR_FILE="$(realpath --relative-to="$(pwd)" "$(graph_err_file "$comp")")"
-    ERR_FILE="$(realpath "$(graph_err_file "$comp")")"
+    COMP_NAME=$(comp_name "$comp")
+    ERR_FILE="$(simple_path "$(graph_err_file "$comp")")"
     echo "Erreur lors de la génération du graphique du traitement $COMP_NAME. Lisez le fichier $ERR_FILE pour plus de détails." >&2
     exit 4
   fi

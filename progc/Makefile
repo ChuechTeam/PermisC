@@ -17,22 +17,26 @@ export OPTIMIZE ?= 0
 ifeq ($(OPTIMIZE), 1)
 	# -Ofast: Enable ALL optimizations
 	# -flto: Enable link-time optimizations (functions defined in .c files can be inlined)
-	# -msse4.1: Enable SSE4.1 instructions
-	#           (the compiler can make use of it. requires a SSE4.1 processor, so 2008+ which is enough)
-	CFLAGS += -Ofast -flto -msse4.1
+	CFLAGS += -Ofast -flto
+endif
+
+# Set to 1 to tailor the executable to the current CPU.
+export OPTIMIZE_NATIVE ?= 0
+ifeq ($(OPTIMIZE_NATIVE), 1)
+	CFLAGS += -march=native
 endif
 
 # Set to 1 to enable advanced experimental algorithms for some computations
 export EXPERIMENTAL_ALGO ?= 0
 ifeq ($(EXPERIMENTAL_ALGO), 1)
-	CFLAGS += -DD1_USE_MAP=1
+	CFLAGS += -DEXPERIMENTAL_ALGO=1
 endif
 
-# Set to 1 to enable advanced experimental algorithms that use AVX2
-# Requires an AVX2 processor.
+# Set to 1 to enable advanced experimental algorithms that use AVX2.
+# Requires compilation with AVX2 support, and an AVX2-capable processor (obviously).
 export EXPERIMENTAL_ALGO_AVX ?= 0
 ifeq ($(EXPERIMENTAL_ALGO_AVX), 1)
-	CFLAGS += -mavx2
+	CFLAGS += -DEXPERIMENTAL_ALGO_AVX=1
 endif
 
 # Set to 1 to output assembly files in the build folder.
@@ -99,7 +103,7 @@ $(OUT)/PermisC: $(OBJ_FILES)
 	@$(CC) $(CFLAGS) $^ -o $@
 
 .PHONY: build clean check_vars
-build:
+build: | make_build_dir
 	@# Use the build_vars.sh script to know if we need to recompile or not.\
 	if [ "$(CLEAN)" = 1 ] || ! bash build_vars.sh check $(OUT)/build_vars; then\
 		$(MAKE) --quiet clean BANNER=0;\
@@ -120,4 +124,4 @@ clean:
 	@echo "Build folder cleaned up!"
 
 check_vars:
-	@./build_vars.sh check $(OUT)/build_vars
+	@bash build_vars.sh check $(OUT)/build_vars

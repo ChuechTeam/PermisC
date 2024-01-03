@@ -14,13 +14,18 @@
 #include <string.h>
 #include <assert.h>
 
-// Use the AVX-optimized delimiter search only when compiling with AVX2 support. (-mavx2 argument)
+// Use the AVX-optimized delimiter search only when compiling with AVX2 support. (-mavx2 argument),
+// and when the EXPERIMENTAL_ALGO_AVX macro is defined.
 #ifndef USE_AVX_DELIM_SEARCH
-#ifdef __AVX2__
-    #define USE_AVX_DELIM_SEARCH 1
-#else
-    #define USE_AVX_DELIM_SEARCH 0
-#endif
+    #if EXPERIMENTAL_ALGO_AVX
+        #ifdef __AVX2__
+            #define USE_AVX_DELIM_SEARCH 1
+        #else
+            #define USE_AVX_DELIM_SEARCH 0
+        #endif
+    #else
+        #define USE_AVX_DELIM_SEARCH 0
+    #endif
 #endif
 
 #if USE_AVX_DELIM_SEARCH
@@ -29,9 +34,9 @@ static uint64_t makeNewMask64(const char* a, __m256i semiColon, __m256i newLine)
 
 // Define the "d_unlikely" macro to hint the compiler that the condition is unlikely to be true.
 #if defined(__GNUC__) || defined(__clang__)
-#define d_unlikely(x) __builtin_expect(!!(x), 0)
+    #define d_unlikely(x) __builtin_expect(!!(x), 0)
 #else
-#define d_unlikely(x) (x)
+    #define d_unlikely(x) (x)
 #endif // defined(__GNUC__) || defined(__clang__)
 #endif // USE_AVX_DELIM_SEARCH
 

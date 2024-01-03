@@ -11,7 +11,7 @@ if [ "$#" -lt 2 ]; then
   exit 2
 fi
 
-VAR_NAMES=("CC" "CFLAGS" "OPTIMIZE" "EXPERIMENTAL_ALGO" "EXPERIMENTAL_ALGO_AVX" "ASM")
+VAR_NAMES=("CC" "CFLAGS" "OPTIMIZE" "OPTIMIZE_NATIVE" "EXPERIMENTAL_ALGO" "EXPERIMENTAL_ALGO_AVX" "ASM")
 print_vars() {
   for var in "${VAR_NAMES[@]}"; do
     if [ -v "$var" ]; then

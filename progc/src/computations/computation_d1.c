@@ -6,10 +6,11 @@
 #include "route.h"
 #include "string_avl.h"
 #include "profile.h"
+#include "compile_settings.h"
 
 // Make the algorithm configurable at compile time: use a hash-based and open-addressed map or an AVL.
 #ifndef D1_USE_MAP
-    #define D1_USE_MAP 0
+    #define D1_USE_MAP EXPERIMENTAL_ALGO
 #endif
 
 // Computation D1
@@ -465,6 +466,7 @@ void computationD1(RouteStream* stream)
         freeBestDriversAVL(bestDrivers);
 
 #if D1_USE_MAP
+        // Free the entire hash map, and also free its linked lists.
         routeMapFree(&map, &freeRouteMapValue);
 #else
         // The routes AVL needs to free all of its nodes,
