@@ -42,8 +42,9 @@ endif
 # Set to 1 to output assembly files in the build folder.
 export ASM ?= 0
 ifeq ($(ASM), 1)
-	CFLAGS := $(filter-out -flto, $(CFLAGS))
-	ASM_CFLAGS := $(filter-out -g, $(CFLAGS)) -S -masm=intel -fverbose-asm
+	# Removing -flto makes the ASM a bit inaccurate, but that's the best we can get
+	# without going into too much madness.
+	ASM_CFLAGS := $(filter-out -g -flto, $(CFLAGS)) -S -masm=intel -fverbose-asm
 endif
 
 # The output directory
