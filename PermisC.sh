@@ -192,7 +192,13 @@ comp_err_file() {
 
 # Allow the user to use a custom awk executable (like mawk), and throw if it doesn't exist.
 # TODO: Only check when we're using an awk-based computation?
-AWK=${AWK:-awk}
+if [ ! -v AWK ]; then
+  if type mawk > /dev/null 2>&1; then
+    AWK=mawk
+  else
+    AWK=awk
+  fi
+fi
 if ! type "$AWK" > /dev/null 2>&1; then
   echo "Impossible de lancer le traitement : commande awk (« $AWK ») introuvable." >&2
   exit 3
