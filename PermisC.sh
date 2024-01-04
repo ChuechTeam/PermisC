@@ -37,6 +37,11 @@ fi
 # Phase 1: Argument checking, parsing and help
 # ----------------------------------------------
 
+# Handy function to print an error message for argument errors caused by the user.
+print_arg_error() {
+  echo "$1 (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+}
+
 # First see if we have any help argument. If so, print help and exit.
 for arg in "$@"; do
   if [ "${arg}" = "-h" ] || [ "${arg}" = "--help" ]; then
@@ -64,15 +69,14 @@ Options :
                                 1 : Utiliser les implémentations basiques en C (AVL uniquement)
                                 2 : Utiliser les implémentations avancées en C (table de hachage, expérimental !)
                                 3 : Utiliser les implémentations très avancées en C (SSE/AVX, ultra expérimental !)
-                            Un changement de niveau requiert une recompilation du programme.
+                            Un changement de niveau peut nécessiter une recompilation du programme.
   -X, --experimental        Équivalent à --quick 2.
   -E, --exceed-speed-limits Équivalent à --quick 3.
                             ${ORANGE}${UL_ON}Attention${UL_OFF} : Cette option ajoute des propulseurs surpuissants à votre camion
                                         et vous expose à une amende pour excès de vitesse sur l'autoroute !!
 $RESET
 Variables d'environnement :
-  AWK : Le chemin vers l'exécutable awk. Par défaut, « awk ».
-  CLEAN : Force la recompilation de l'exécutable PermisC si sa valeur est 1."
+  AWK : Le chemin vers l'exécutable awk. L'exécutable mawk est utilisé si possible."
     exit 0
   fi
 done
@@ -80,14 +84,13 @@ done
 # Check if the file argument is missing: either we have no args, or the first is an option.
 # Also check if we don't have a computation argument.
 if [ $# -eq 0 ]; then
-  echo "Le fichier à traiter est requis. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+  print_arg_error "Le fichier à traiter est requis."
   exit 1
 elif [ $# -eq 1 ]; then
   if [[ $1 = "-"*  ]]; then
-    echo "Le fichier à traiter est requis et doit être le premier argument."\
-         "(Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+    print_arg_error "Le fichier à traiter est requis et doit être le premier argument."
   else
-    echo "Un argument de traitement est requis. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+    print_arg_error "Un argument de traitement est requis."
   fi
   exit 1
 fi
@@ -97,7 +100,7 @@ CSV_FILE=$1
 if [ ! -f "$CSV_FILE" ]; then
   # If it starts with a dash, there's a 99.99% chance that the user put an option instead of a file.
   if [[ "$CSV_FILE" = "-"* ]]; then
-    echo "Le fichier à traiter doit être le premier argument. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+    print_arg_error "Le fichier à traiter doit être le premier argument."
   else
     echo "Le fichier « $CSV_FILE » n'existe pas." >&2
   fi
@@ -137,12 +140,17 @@ for (( i=2; i<=$#; i++ )); do
       add_computation "${arg:1}" ;;
   --quick|-Q*)
       # Parse the quickness level.
-      NEXT=$(( i+1 )); SKIP_NEXT=0
+      NEXT=$(( i+1 )); SKIP_NEXT=0; SHORT_ARG=0
       if [[ "$arg" = "-Q"* ]]; then
         # Try using the number in the argument (like in -Q2 for example)
         QL_STR="${arg:2}"
+        SHORT_ARG=1
       fi
       if ! is_number "${QL_STR:-}" && (( i != $# )); then
+        if [ $SHORT_ARG -eq 1 ] && [ -n "$QL_STR" ]; then
+          print_arg_error "Le nombre suité après « -Q » (« $QL_STR ») est invalide."
+          exit 1
+        fi
         QL_STR="${!NEXT}"
         SKIP_NEXT=1
       fi
@@ -159,24 +167,26 @@ for (( i=2; i<=$#; i++ )); do
   --exceed-speed-limits|--excès-de-vitesse|-E) # Little easter egg
       QUICK_LEVEL=3 ;;
   -*)
-      echo "Option « $arg » inconnue. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+      print_arg_error "Option « $arg » inconnue."
       exit 1 ;;
   *)
-      echo "Un seul fichier peut être donné à la fois. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+      print_arg_error "Un seul fichier peut être donné à la fois."
       exit 1 ;;
   esac
 done
 
 if [ "${#COMPUTATIONS[@]}" -eq 0 ]; then
-  echo "Un argument de traitement est requis. (Utilisez l'argument « -h » pour avoir de l'aide)" >&2
+  print_arg_error "Un argument de traitement est requis."
   exit 1
 fi
 
 # Prepare some handy variables for handling quickness levels.
 # QLx is equal to 1 if QUICK_LEVEL >= x, and 0 otherwise.
-QL1=$(( QUICK_LEVEL >= 1 ))
-QL2=$(( QUICK_LEVEL >= 2 ))
-QL3=$(( QUICK_LEVEL >= 3 ))
+# Use the "10#" prefix to force the number to be interpreted as a decimal, in case
+# the user puts a zero in front of the number (I actually did by the way).
+QL1=$(( 10#$QUICK_LEVEL >= 1 ))
+QL2=$(( 10#$QUICK_LEVEL >= 2 ))
+QL3=$(( 10#$QUICK_LEVEL >= 3 ))
 
 # ----------------------------------------------
 # Phase 2: Make compilation and folder setup
