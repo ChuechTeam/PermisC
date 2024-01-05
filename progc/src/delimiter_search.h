@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include "compile_settings.h"
 
 // Use the AVX-optimized delimiter search only when compiling with AVX2 support. (-mavx2 argument),
 // and when the EXPERIMENTAL_ALGO_AVX macro is defined.
