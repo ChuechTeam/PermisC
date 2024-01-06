@@ -73,7 +73,8 @@ Options :
   -X, --experimental        Équivalent à --quick 2.
   -E, --exceed-speed-limits Équivalent à --quick 3.
                             ${ORANGE}${UL_ON}Attention${UL_OFF} : Cette option ajoute des propulseurs surpuissants à votre camion
-                                        et vous expose à une amende pour excès de vitesse sur le périphérique nord de Rennes !!
+                                        et vous expose à une amende pour excès de vitesse sur le
+                                        périphérique nord de Rennes !!
 $RESET
 Variables d'environnement :
   AWK : Le chemin vers l'exécutable awk. L'exécutable mawk est utilisé si possible."
