@@ -199,6 +199,8 @@ void routeMapFree(RouteMap* map, RouteMapValueDestructFunc destruct)
             destruct(&entry->value);
         }
     }
+
+    free(map->slots);
 }
 #endif
 
