@@ -31,8 +31,9 @@ typedef struct AVLT // AVL principal
   Town value;
 } AVLT;
 
-int croiCompare(AVL1 *A,Town* i) // comparer les ID entre celui d'un chainon de l'AVL
-                        // d'ID et celui d'une ville à ajouter dans l'avl
+int croiCompare(AVL1 *A,
+                Town *i) // comparer les ID entre celui d'un chainon de l'AVL
+                         // d'ID et celui d'une ville à ajouter dans l'avl
 {
   if (strcmp(i->name, A->value.name) > 0) {
     return -4;
@@ -114,6 +115,7 @@ AVL1 *supTown(AVL1 *f, Town *passage) {
           f->left,
           passage); // s'il n'existe pas de fils droit mais qu'il existe un fils
                     // gauche alors on voir pour supprimer le fils gauche
+                    //
       return (f);
     }
 
@@ -126,21 +128,6 @@ AVL1 *supTown(AVL1 *f, Town *passage) {
     }
     return f;
   }
-}
-
-AVLT *supTown2(AVLT *f, Town *passage) {
-  if (f->value.name == NULL) // quand la chaine est vide
-  {
-    printf("No town!\n");
-    return (NULL);
-  } else {
-    *passage = f->value; // si aucun fils n'existe: suppression du premier
-                         // chainon (pour l'envoyer dans l'AVL)
-    f->value = (Town){0};
-    free(f);
-    return NULL;
-  }
-  return f;
 }
 
 AVL1 *AVL1Create(Town *T) {
@@ -203,7 +190,7 @@ int AVLCompare(AVLT *A, Town *T) {
   }
 }
 
-void parcoursInfInv(AVLT *A, int *x, AVL1** C) {
+void parcoursInfInv(AVLT *A, int *x, AVL1 **C) {
   if ((A->right != NULL && *x < 10) && A != NULL) {
     parcoursInfInv(A->right, x, C);
   }
@@ -268,7 +255,8 @@ void computationT(RouteStream *stream) {
     A = avlInsert(A, T, &AVLCreate, &AVLCompare, NULL, NULL);
   }
   free(f);
-  f=NULL;
-  parcoursInfInv(A, &x, &f); // lecture des 10 villes les plus parcourues dans l'ordre décroissant
-  parcoursprefixe(f);
+  f = NULL;
+  parcoursInfInv(A, &x, &f);
+  parcoursprefixe(
+      f); // lecture des 10 villes les plus parcourues dans l'ordre alphabétique
 }
