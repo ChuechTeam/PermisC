@@ -27,7 +27,7 @@ typedef struct AVL1 // AVL primaire
 
 typedef struct AVLT // AVL principal
 {
-  AVL_HEADER(AVLT);
+  AVL_HEADER(AVLT)
   Town value;
 } AVLT;
 

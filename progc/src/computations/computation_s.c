@@ -8,7 +8,7 @@
 #include <string.h>
 
 typedef struct Dist {
-  AVL_HEADER(Dist);
+  AVL_HEADER(Dist)
   float d;
   int m; //(multiplicateur)
 } Dist;
@@ -22,12 +22,12 @@ typedef struct Travel {
 } Travel;
 
 typedef struct TownS {
-  AVL_HEADER(TownS);
+  AVL_HEADER(TownS)
   Travel t;
 } TownS;
 
 typedef struct AVLtempo {
-  AVL_HEADER(AVLtempo);
+  AVL_HEADER(AVLtempo)
   Travel *t;
 } AVLtempo;
 
