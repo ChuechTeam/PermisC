@@ -1,5 +1,8 @@
 # The makefile for PermisC. Lean and simple!
 
+# Use Bash as the default shell
+SHELL := /bin/bash
+
 # Set a default C compiler: gcc
 export CC ?= gcc
 
