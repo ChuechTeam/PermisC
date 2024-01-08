@@ -108,20 +108,19 @@ $(OUT)/PermisC: $(OBJ_FILES)
 
 .PHONY: build clean check_vars
 build: | make_build_dir
-	@# Use the build_vars.sh script to know if we need to recompile or not.\
-	if [ "$(CLEAN)" = 1 ] || ! bash build_vars.sh check $(OUT)/build_vars; then\
+	@# Use the build_vars.sh script to know if we need to recompile or not.
+	@if [ "$(CLEAN)" = 1 ] || ! bash build_vars.sh check $(OUT)/build_vars; then\
 		$(MAKE) --quiet clean BANNER=0;\
 	fi
 	@bash build_vars.sh update $(OUT)/build_vars
 	@$(MAKE) --quiet "$(OUT)/PermisC" BANNER=0
 
 clean:
-	@\
-	if [ -e "$(OUT)" ]; then\
-		# If someone created a "build-make" file that isn't a folder (why would you even do this?!)\
-		# then we need to remove it.\
-		# Else, use the 'find' command to delete files in the directory WITHOUT removing the directory itself.\
-		# Removing it using rm leads to annoying bugs when having build-make as the current directory.\
+	@# If someone created a "build-make" file that isn't a folder (why would you even do this?!)
+	@# then we need to remove it.
+	@# Else, use the 'find' command to delete files in the directory WITHOUT removing the directory itself.
+	@# Removing it using rm leads to annoying bugs when having build-make as the current directory.
+	@if [ -e "$(OUT)" ]; then\
 		if [ ! -d "$(OUT)" ]; then rm "$(OUT)";\
 		else find "$(OUT)" -mindepth 1 -delete; fi;\
 	fi
