@@ -116,12 +116,12 @@ clean:
 	@\
 	if [ -e "$(OUT)" ]; then\
 		# If someone created a "build-make" file that isn't a folder (why would you even do this?!)\
-        # then we need to remove it.\
-        # Else, use the 'find' command to delete files in the directory WITHOUT removing the directory itself.\
-        # Removing it using rm leads to annoying bugs when having build-make as the current directory.\
- 		if [ ! -d "$(OUT)" ]; then rm "$(OUT)";\
- 		else find "$(OUT)" -mindepth 1 -delete; fi;\
- 	fi
+		# then we need to remove it.\
+		# Else, use the 'find' command to delete files in the directory WITHOUT removing the directory itself.\
+		# Removing it using rm leads to annoying bugs when having build-make as the current directory.\
+		if [ ! -d "$(OUT)" ]; then rm "$(OUT)";\
+		else find "$(OUT)" -mindepth 1 -delete; fi;\
+	fi
 	@echo "Build folder cleaned up!"
 
 check_vars:
