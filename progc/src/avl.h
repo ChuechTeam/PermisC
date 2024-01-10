@@ -19,14 +19,14 @@
 #define AVL_DECLARE_INSERT_FUNCTION(funcName, treeType, valueType, funcA, funcB) \
     treeType* funcName(treeType* tree, valueType* value, treeType** insertedNode, bool* alreadyPresent) \
     { \
-        return (treeType*) avlInsert((AVL*) tree, value, (funcA), (funcB), (AVL**) insertedNode, alreadyPresent); \
+        return (treeType*) avlInsert((AVL*) tree, (void*) value, (funcA), (funcB), (AVL**) insertedNode, alreadyPresent); \
     }
 
 // Creates a function for an AVL tree type that calls the avlLookup function, by applying the types correctly.
 #define AVL_DECLARE_LOOKUP_FUNCTION(funcName, treeType, valueType, compareFunc) \
     treeType* funcName(treeType* tree, valueType* value) \
     { \
-        return (treeType*) avlLookup((AVL*) tree, value, (compareFunc)); \
+        return (treeType*) avlLookup((AVL*) tree, (void*) value, (compareFunc)); \
     }
 
 // The base struct for AVL trees.
