@@ -50,31 +50,31 @@ for arg in "$@"; do
     UL_OFF="\033[24m" # Underline off
     RESET="\033[0m" # Reset everything
     echo -e \
-"PermisC, le programme de traitement approuvé par Marcel
+"PermisC, le programme de traitement qui va à toute vitesse (approuvé par Marcel !)
 Utilisation : ./PermisC.sh FICHIER <-d1|-d2|-l|-t|-s>...
                                    [options]
               avec FICHIER un fichier CSV valide.
 Lit le fichier CSV des trajets et effectue tous les traitements demandés.
 Les graphiques seront créés dans le dossier « images ».
 Options :
-  -h, --help                Afficher l'aide
-  -d1                       Lancer le traitement D1 : les conducteurs avec le plus de trajets
-  -d2                       Lancer le traitement D2 : les conducteurs avec la plus grande distance parcourue
-  -l                        Lancer le traitement L : les trajets les plus longs
-  -t                        Lancer le traitement T : les villes les plus traversées
-  -s                        Lancer le traitement S : les statistiques sur la distance des trajets
-  -Q, --quick [n]           Utiliser des implémentations natives de calcul (au lieu de awk) plus rapides
-                            pour le traitement D1, de plus en plus avancées selon le niveau choisi :
-                                0 : Utiliser awk si possible
-                                1 : Utiliser les implémentations basiques en C (AVL uniquement)
-                                2 : Utiliser les implémentations avancées en C (table de hachage, expérimental !)
-                                3 : Utiliser les implémentations très avancées en C (SSE/AVX, ultra expérimental !)
-                            Un changement de niveau peut nécessiter une recompilation du programme.
-  -X, --experimental        Équivalent à --quick 2.
-  -E, --exceed-speed-limits Équivalent à --quick 3.
-                            ${ORANGE}${UL_ON}Attention${UL_OFF} : Cette option ajoute des propulseurs surpuissants à votre camion
-                                        et vous expose à une amende pour excès de vitesse sur le
-                                        périphérique nord de Rennes !!
+  -h, --help                 Afficher l'aide
+  -d1                        Lancer le traitement D1 : les conducteurs avec le plus de trajets
+  -d2                        Lancer le traitement D2 : les conducteurs avec la plus grande distance parcourue
+  -l                         Lancer le traitement L : les trajets les plus longs
+  -t                         Lancer le traitement T : les villes les plus traversées
+  -s                         Lancer le traitement S : les statistiques sur la distance des trajets
+  -Q, --quick [n]            Utiliser des implémentations natives de calcul (au lieu de awk) plus rapides
+                             pour le traitement D1, de plus en plus avancées selon le niveau choisi :
+                                 0 : Utiliser awk si possible
+                                 1 : Utiliser les implémentations basiques en C (AVL uniquement)
+                                 2 : Utiliser les implémentations avancées en C (table de hachage, expérimental !)
+                                 3 : Utiliser les implémentations très avancées en C (SSE/AVX, ultra expérimental !)
+                             Un changement de niveau peut nécessiter une recompilation du programme.
+  -X, --experimental         Équivalent à --quick 2.
+  -E, --exceed-speed-limits, Équivalent à --quick 3.
+      --excès-de-vitesse     ${ORANGE}${UL_ON}Attention${UL_OFF} : Cette option ajoute des propulseurs surpuissants à votre camion
+                                         et vous expose à une amende pour excès de vitesse sur le
+                                         périphérique nord de Rennes !!
 $RESET
 Variables d'environnement :
   AWK : Le chemin vers l'exécutable awk. L'exécutable mawk est utilisé si possible."
@@ -165,7 +165,7 @@ for (( i=2; i<=$#; i++ )); do
       fi ;;
   --experimental|-X)
       QUICK_LEVEL=2 ;;
-  --exceed-speed-limits|--excès-de-vitesse|-E) # Little easter egg
+  --exceed-speed-limits|--excès-de-vitesse|-E) # Little easter egg (not anymore...)
       QUICK_LEVEL=3 ;;
   -*)
       print_arg_error "Option « $arg » inconnue."
