@@ -2,266 +2,195 @@
 #include "computations.h"
 #include "route.h"
 #include <assert.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
+#include "profile.h"
 
-typedef struct Dist {
-  AVL_HEADER(Dist)
-  float d;
-  int m; //(multiplicateur)
-} Dist;
-
-typedef struct Travel {
-  int ID;
-  float min;
-  float max;
-  float moy;
-  Dist *parc;
+typedef struct Travel
+{
+    uint32_t id;
+    float min;
+    float max;
+    // In the first step, where we read the file, this will be the sum of all the distances.
+    // Once we have finished this, in the calcAvg function, this will be the average distance.
+    // This approach saves some memory instead of having two different fields (sum and avg).
+    float sumOrAvg;
+    uint32_t nSteps;
 } Travel;
 
-typedef struct TownS {
-  AVL_HEADER(TownS)
-  Travel t;
-} TownS;
+// The AVL containing all the travels, before we sort them.
+typedef struct TravelAVL
+{
+    AVL_HEADER(TravelAVL)
 
-typedef struct AVLtempo {
-  AVL_HEADER(AVLtempo)
-  Travel *t;
-} AVLtempo;
+    Travel t;
+} TravelAVL;
 
-Dist *Distcreate(float* parc) {
-  Dist *A = malloc(sizeof(Dist)); // création du chainon de l'AVL
-  assert(A);
-  A->d = *parc;
-  A->left = NULL;
-  A->right = NULL;
-  A->balance = 0;
-  return A;
+// The AVL with all the travels sorted by their (max-min) value.
+typedef struct TravelSortAVL
+{
+    AVL_HEADER(TravelSortAVL)
+
+    Travel* t; // Points to a travel in TravelAVL.
+} TravelSortAVL;
+
+TravelAVL* travelAVLCreate(Travel* travel)
+{
+    TravelAVL* tree = malloc(sizeof(TravelAVL));
+    assert(tree);
+
+    tree->t = *travel; // Copy the travel.
+    AVL_INIT(tree);
+
+    return tree;
 }
 
-int distcompare(Dist *p, float* i) {
-  if (*i > p->d) {
-    return -4;
-  }
-  if (*i < p->d) {
-    return 1;
-  } else {
-    return 0;
-  }
+int travelAVLCompare(TravelAVL* tree, Travel* travel)
+{
+    return tree->t.id - travel->id;
 }
 
-int distsearch(Dist *p, float i) {
-  if (p->d > i) {
-    if (p->left != NULL) {
-      return distsearch(p->left, i);
-    } else {
-      return 0;
-    }
-  }
-  if (p->d < i) {
-    if (p->right != NULL) {
-      return distsearch(p->right, i);
-    } else {
-      return 0;
-    }
-  } else {
-    return 1;
-  }
-}
+AVL_DECLARE_INSERT_FUNCTION(travelAVLInsert, TravelAVL, Travel,
+                            (AVLCreateFunc) &travelAVLCreate, (AVLCompareValueFunc) &travelAVLCompare)
 
-TownS *TownScreate(Travel *T) {
-  TownS *A = malloc(sizeof(TownS)); // création du chainon de l'AVL
-  assert(A);
-  A->t = *T;
-  A->left = NULL;
-  A->right = NULL;
-  A->balance = 0;
-  return A;
-}
+AVL_DECLARE_LOOKUP_FUNCTION(travelAVLLookup, TravelAVL, Travel, (AVLCompareValueFunc) &travelAVLCompare)
 
-int Townscompare(TownS *T, Travel *i) {
-  if (T != NULL) {
-    if (i->ID > T->t.ID) {
-      return -4;
-    }
-    if (i->ID < T->t.ID) {
-      return 1;
-    } else {
-      return 0;
-    }
-  }
-}
-
-void Max(Travel *T, Dist *d) {
-  if (d->right != NULL) {
-    Max(T, d->right);
-  } else {
-    T->max = d->d;
-  }
-}
-
-void Min(Travel *T, Dist *d) {
-  if (d->left != NULL) {
-    Min(T, d->left);
-  } else {
-    T->min = d->d;
-  }
-}
-
-void Moy(Travel *T, Dist *d, float *x, int *i) {
-  if (d->right != NULL) {
-    Moy(T, d->right, x, i);
-  }
-  if (d != NULL) {
-    *x += d->d * d->m;
-    *i += 1;
-  }
-  if (d->left != NULL) {
-    Moy(T, d->left, x, i);
-  }
-}
-
-  void Moyend(Travel *T, Dist *d, float *x, int *i) {
-    Moy(T, d, x, i);
-  T->moy = *x / *i;
-}
-
-  void maxminmoy(TownS *T) {
-
-  if (T->left != NULL) {
-    maxminmoy(T->left);
-  }
-  if (T != NULL) {
-    float x=0;
-    int i=0;
-    Max(&T->t, T->t.parc);
-    Min(&T->t, T->t.parc);
-    Moyend(&T->t, T->t.parc, &x, &i);
-  }
-  if (T->right != NULL) {
-    maxminmoy(T->right);
-  }
-}
-
-AVLtempo *AVLcreate(Travel *T) {
-  AVLtempo *A = malloc(sizeof(AVLtempo)); // création du chainon de l'AVL
-  assert(A);
-  A->t = T;
-  A->left = NULL;
-  A->right = NULL;
-  A->balance = 0;
-  return A;
-}
-
-int AVLcompare(AVLtempo *A, Travel *T) {
-  if (T->max - T->min > A->t->max - A->t->min) {
-    return -4;
-  }
-  if (T->max - T->min < A->t->max - A->t->min) {
-    return 1;
-  } else {
-    if (T->ID > A->t->ID) {
-      return -4;
-    }
-    if (T->ID < A->t->ID) {
-      return 1;
-    }
-  }
-}
-
-TownS *supTown2(TownS *f, Travel *passage) {
-  if (f == NULL) // quand la chaine est vide
-  {
-    printf("No town!\n");
-    return (NULL);
-  } else {
-    if (f != NULL && f->right != NULL) {
-      f->right =supTown2(f->right, passage); // si il existe fils droit alors on cherche à suprrimer le fils droit
-      return (f);
+// Once we have accumulated all the distances, calculate all the average distances of the travels.
+void calcAvg(TravelAVL* tree)
+{
+    if (tree == NULL)
+    {
+        return;
     }
 
-    if (f->left != NULL) {
-      f->left = supTown2(f->left,passage); // s'il n'existe pas de fils droit mais qu'il existe un fils gauche alors on voir pour supprimer le fils gauche
-      return (f);
-    }
+    // At this moment, avgOrSum contains the sum of all distances.
+    // Transform it into an average.
+    tree->t.sumOrAvg = tree->t.sumOrAvg / tree->t.nSteps;
 
-    else {
-      *passage = f->t; // si aucun fils n'existe: suppression du premier chainon (pour l'envoyer dans l'AVL)                  
-      f->t = (Travel){0};
-      free(f);
-      return NULL;
-    }
-  }
+    calcAvg(tree->left);
+    calcAvg(tree->right);
 }
 
-void parcoursInf(AVLtempo *A, int *x) {
-  if ((A->right != NULL && *x < 50) && A != NULL) {
-    parcoursInf(A->right, x);
-  }
-  if (*x < 50) {
-  (*x) += 1;
-  printf("%d;%d;%f;%f;%f;%f\n",*x, A->t->ID,A->t->min,A->t->moy, A->t->max, A->t->max-A->t->min);
-    
-  }
-  if (A != NULL && (A->left != NULL && *x < 50)) {
-    parcoursInf(A->left, x);
-  }
+TravelSortAVL* travelSortAVLCreate(Travel *travel) {
+  TravelSortAVL *tree = malloc(sizeof(TravelSortAVL));
+  assert(tree);
+
+  tree->t = travel;
+  AVL_INIT(tree);
+
+  return tree;
 }
 
-void creationInf(TownS *A, AVLtempo **C) {
-  if (A->right!=NULL) {
-    creationInf(A->right, C);
-  }
-    *C = avlInsert(*C, &A->t, &AVLcreate, &AVLcompare, NULL, NULL);
-
-  if (A->left != NULL ) {
-    creationInf(A->left, C);
-  }
-}
-
-void freepostfixe(AVL* T){
-  if(T->left!=NULL){
-    freepostfixe(T->left);
-  }
-  if(T->right!=NULL){
-    freepostfixe(T->right);
-  }
-  free(T);
-}
-
-void computationS(RouteStream *stream) {
-  TownS *T=NULL;
-  TownS* F;
-  Travel t;
-  AVLtempo *A=NULL;
-  int x = 0;
-  RouteStep step;
-  while (rsRead(stream, &step, ALL_FIELDS & ~TOWN_A & ~TOWN_B & ~STEP_ID)) {
-    t.ID = step.routeId;
-    F=avlLookup(T,  &t, Townscompare);
-    if(F==NULL){
-    t.parc = Distcreate(&step.distance);
-    t.parc->m=1;
-    T = avlInsert(T, &t, TownScreate, Townscompare, NULL, NULL);
+int travelSortAVLCompare(TravelSortAVL* tree, Travel* travel)
+{
+    float deltaMaxMin = (tree->t->max - tree->t->min) - (travel->max - travel->min);
+    if (deltaMaxMin < 0)
+    {
+        return -1;
     }
-    else{
-      Dist* g;
-      bool b;
-      F->t.parc=avlInsert(F->t.parc, &step.distance, Distcreate, distcompare, &g, &b);
-      if(b){
-        g->m+=1;
-      }
-      else{
-        g->m=1;
-      }
+    else if (deltaMaxMin > 0)
+    {
+        return 1;
     }
-  }
-  x = 0;
-  maxminmoy(T);
-  creationInf(T, &A);
-  parcoursInf(A, &x);
-  freepostfixe(A);
-  freepostfixe(T);
+    else
+    {
+        return tree->t->id - travel->id;
+    }
+}
+
+AVL_DECLARE_INSERT_FUNCTION(travelSortAVLInsert, TravelSortAVL, Travel,
+                            (AVLCreateFunc) &travelSortAVLCreate, (AVLCompareValueFunc) &travelSortAVLCompare)
+
+void printTop50(TravelSortAVL* tr, int* n)
+{
+    if (tr == NULL || *n >= 50)
+    {
+        return;
+    }
+
+    printTop50(tr->right, n);
+
+    if (*n < 50)
+    {
+        *n += 1;
+        printf("%d;%d;%f;%f;%f;%f\n", *n,
+            tr->t->id, tr->t->min, tr->t->sumOrAvg, tr->t->max, tr->t->max - tr->t->min);
+    }
+
+    printTop50(tr->left, n);
+}
+
+void transferToSortAVL(TravelAVL* travels, TravelSortAVL** sorted)
+{
+    if (travels == NULL)
+    {
+        return;
+    }
+
+    *sorted = travelSortAVLInsert(*sorted, &travels->t, NULL, NULL);
+
+    transferToSortAVL(travels->left, sorted);
+    transferToSortAVL(travels->right, sorted);
+}
+
+void freeAVL(AVL* tree)
+{
+    if (tree->left != NULL)
+    {
+        freeAVL(tree->left);
+    }
+    if (tree->right != NULL)
+    {
+        freeAVL(tree->right);
+    }
+    free(tree);
+}
+
+void computationS(RouteStream* stream)
+{
+    PROFILER_START("Computation S");
+
+    TravelAVL* travels = NULL;
+
+    RouteStep step;
+    while (rsRead(stream, &step, ROUTE_ID | DISTANCE))
+    {
+        Travel tra = { .id = step.routeId };
+        TravelAVL* found = travelAVLLookup(travels, &tra);
+        if (found == NULL)
+        {
+            tra.max = step.distance;
+            tra.min = step.distance;
+            tra.sumOrAvg = step.distance; // Sum of all the distances.
+            tra.nSteps = 1;
+
+            travels = travelAVLInsert(travels, &tra, NULL, NULL);
+        }
+        else
+        {
+            if (found->t.max < step.distance)
+            {
+                found->t.max = step.distance;
+            }
+            if (found->t.min > step.distance)
+            {
+                found->t.min = step.distance;
+            }
+            found->t.sumOrAvg += step.distance; // Add to the sum of all distances.
+            found->t.nSteps += 1;
+        }
+    }
+
+    TravelSortAVL* sorted = NULL;
+    int n = 0;
+
+    // Transform the sum into an average.
+    calcAvg(travels);
+    transferToSortAVL(travels, &sorted);
+    printTop50(sorted, &n);
+
+    freeAVL((AVL*) sorted);
+    freeAVL((AVL*) travels);
+
+    PROFILER_END();
 }

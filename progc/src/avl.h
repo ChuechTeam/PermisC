@@ -22,6 +22,13 @@
         return (treeType*) avlInsert((AVL*) tree, value, (funcA), (funcB), (AVL**) insertedNode, alreadyPresent); \
     }
 
+// Creates a function for an AVL tree type that calls the avlLookup function, by applying the types correctly.
+#define AVL_DECLARE_LOOKUP_FUNCTION(funcName, treeType, valueType, compareFunc) \
+    treeType* funcName(treeType* tree, valueType* value) \
+    { \
+        return (treeType*) avlLookup((AVL*) tree, value, (compareFunc)); \
+    }
+
 // The base struct for AVL trees.
 // For making AVL trees of a type T, you need to either:
 // - create another struct with the AVL struct as the first member.
