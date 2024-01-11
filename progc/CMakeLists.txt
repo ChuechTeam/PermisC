@@ -15,6 +15,9 @@ add_executable(PermisC
         src/options.c
 )
 
+option(EXPERIMENTAL_ALGO "Use experimental algorithms" OFF)
+option(EXPERIMENTAL_ALGO_AVX "Use AVX stuff" OFF)
+
 target_include_directories(PermisC PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
 
 # Stop Windows from complaining about """unsafe""" functions in stdlib
@@ -31,5 +34,19 @@ if (UNIX)
     target_compile_options(PermisC PUBLIC -Wall -Wno-unused-function)
     if (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
         target_compile_options(PermisC PUBLIC -flto)
+    endif ()
+endif ()
+
+if (EXPERIMENTAL_ALGO)
+    target_compile_definitions(PermisC PUBLIC EXPERIMENTAL_ALGO=1)
+endif ()
+
+if (EXPERIMENTAL_ALGO_AVX)
+    target_compile_definitions(PermisC PUBLIC EXPERIMENTAL_ALGO_AVX=1)
+    if (UNIX)
+        target_compile_options(PermisC PUBLIC -mavx2)
+    endif ()
+    if (WIN32)
+        target_compile_options(PermisC PUBLIC /arch:AVX2)
     endif ()
 endif ()
