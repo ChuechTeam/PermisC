@@ -1,4 +1,4 @@
 *.csv filter=lfs diff=lfs merge=lfs -text
 # Force sh files to be in LF, so we can use them with WSL in Windows
-*.sh text=auto eof=lf
-Makefile text=auto eof=lf
+*.sh text=auto eol=lf
+Makefile text=auto eol=lf
