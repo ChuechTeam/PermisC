@@ -29,6 +29,11 @@
         return (treeType*) avlLookup((AVL*) tree, (void*) value, (compareFunc)); \
     }
 
+// Creates both the insert and lookup functions that are static (only valid in current .c file), all in one macro!
+#define AVL_DECLARE_FUNCTIONS_STATIC(funcPrefix, treeType, valueType, createFunc, compareFunc) \
+    static AVL_DECLARE_INSERT_FUNCTION(funcPrefix ## Insert, treeType, valueType, createFunc, compareFunc) \
+    static AVL_DECLARE_LOOKUP_FUNCTION(funcPrefix ## Lookup, treeType, valueType, compareFunc)
+
 // The base struct for AVL trees.
 // For making AVL trees of a type T, you need to either:
 // - create another struct with the AVL struct as the first member.

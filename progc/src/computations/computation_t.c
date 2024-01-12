@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "profile.h"
+#include "compile_settings.h"
+
+#if !EXPERIMENTAL_ALGO
 
 // AVL with all the ids
 typedef struct IdAVL
@@ -222,3 +225,5 @@ void computationT(RouteStream* stream)
 
     PROFILER_END();
 }
+
+#endif
