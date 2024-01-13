@@ -1,41 +1,50 @@
-#include "avl.h"
-#include "computations.h"
-#include "route.h"
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include "string_avl.h"
-#include <stdalign.h>
-
-#include "profile.h"
 #include "compile_settings.h"
 
 #if EXPERIMENTAL_ALGO
 
+#include "computations.h"
+
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "avl.h"
+#include "route.h"
+#include "mem_alloc.h"
+#include "profile.h"
+
+/*
+ * [EXPERIMENTAL!] Computation T implementation
+ */
+
+// The memory arenas used for each kind of structure.
+// Currently those are global variables, should these be passed to the create functions instead?
+MemArena routeAVLMem; // Used to allocate RouteAVL nodes.
+MemArena townAVLMem; // Used to allocate TownAVL nodes.
+MemArena townSortAVLMem; // Used to allocate TownSortAVL nodes.
+MemArena townNodeListMem; // Used to allocate the TownNodeList structures.
+
 typedef uint32_t TownNodeId;
 
-const TownNodeId NULL_TNID = UINT32_MAX;
-
-#define TN_LIST_SIZE 128
+#define TN_LIST_SIZE 132
 #define TN_LIST_NUM TN_LIST_SIZE/sizeof(TownNodeId)
 
 typedef struct TownNodeList
 {
-    uint16_t size;
     struct TownNodeList* next;
-    alignas(8) TownNodeId nodes[TN_LIST_NUM];
+    uint16_t size;
+    TownNodeId nodes[TN_LIST_NUM];
 } TownNodeList;
 
 void tnListInit(TownNodeList* list)
 {
-    memset(list->nodes, 0xFF, TN_LIST_SIZE);
     list->size = 0;
     list->next = NULL;
 }
 
 TownNodeList* tnListCreate()
 {
-    TownNodeList* list = malloc(sizeof(TownNodeList));
+    TownNodeList* list = memAlloc(&townNodeListMem, sizeof(TownNodeList));
     assert(list);
 
     tnListInit(list);
@@ -83,7 +92,8 @@ typedef struct RouteAVL
     AVL_HEADER(RouteAVL)
 
     int routeId;
-    TownNodeList towns;
+    // Allocated in the memory arena.
+    TownNodeList* towns;
 } RouteAVL;
 
 typedef struct TownAVL
@@ -105,12 +115,12 @@ typedef struct TownSortAVL
 
 static RouteAVL* routeAVLCreate(const int* routeId)
 {
-    RouteAVL* tree = malloc(sizeof(RouteAVL));
-    assert(tree);
+    RouteAVL* tree = memAlloc(&routeAVLMem, sizeof(RouteAVL));
 
     AVL_INIT(tree);
     tree->routeId = *routeId;
-    tnListInit(&tree->towns);
+    tree->towns = memAlloc(&townNodeListMem, sizeof(TownNodeList));
+    tnListInit(tree->towns);
 
     return tree;
 }
@@ -126,7 +136,7 @@ AVL_DECLARE_FUNCTIONS_STATIC(routeAVL, RouteAVL, const int,
 static TownAVL* townAVLCreate(const char* townName)
 {
     size_t len = strlen(townName);
-    TownAVL* tree = malloc(sizeof(TownAVL) + len + 1);
+    TownAVL* tree = memAlloc(&townAVLMem, sizeof(TownAVL) + len + 1);
 
     AVL_INIT(tree);
     tree->passed = 0;
@@ -146,8 +156,8 @@ AVL_DECLARE_FUNCTIONS_STATIC(townAVL, TownAVL, const char,
 
 TownSortAVL* townSortAVLCreate(TownAVL* townNode)
 {
-    TownSortAVL* tree = malloc(sizeof(TownSortAVL));
-    assert(tree);
+    TownSortAVL* tree = memAlloc(&townSortAVLMem, sizeof(TownSortAVL));
+    // assert(tree);
 
     AVL_INIT(tree);
     tree->townNode = townNode;
@@ -179,8 +189,8 @@ AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertPassed, TownSortAVL, TownAVL,
 AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertName, TownSortAVL, TownAVL,
                             (AVLCreateFunc) &townSortAVLCreate, (AVLCompareValueFunc) &townSortAVLCompareName)
 
-static void insertTown(const RouteStep* step, RouteAVL* routeNode, TownAVL** towns, const char* townName, bool isTownA,
-                       TownNodeId* idCounter)
+static inline void insertTown(const RouteStep* step, RouteAVL* routeNode, TownAVL** towns, const char* townName,
+                              bool isTownA, TownNodeId* idCounter)
 {
     TownAVL* townNode = townAVLLookup(*towns, townName);
     if (townNode == NULL)
@@ -194,9 +204,9 @@ static void insertTown(const RouteStep* step, RouteAVL* routeNode, TownAVL** tow
         townNode->firstTown++;
     }
 
-    if (!tnListSearch(&routeNode->towns, townNode->id))
+    if (!tnListSearch(routeNode->towns, townNode->id))
     {
-        tnListAdd(&routeNode->towns, townNode->id);
+        tnListAdd(routeNode->towns, townNode->id);
         townNode->passed++;
     }
 }
@@ -251,6 +261,11 @@ void computationT(RouteStream* stream)
     TownAVL* towns = NULL;
     TownNodeId idCounter = 0;
 
+    memInit(&routeAVLMem, 1 * 1024 * 1024);
+    memInit(&townAVLMem, 1 * 1024 * 1024);
+    memInit(&townSortAVLMem, 256 * 1024);
+    memInit(&townNodeListMem, 1 * 1024 * 1024);
+
     RouteStep step;
     while (rsRead(stream, &step, ROUTE_ID | STEP_ID | TOWN_A | TOWN_B))
     {
@@ -270,6 +285,11 @@ void computationT(RouteStream* stream)
     sortTowns(towns, &sorted);
     extractTop10(sorted, &top, &n);
     printTop10(top);
+
+    memFree(&routeAVLMem);
+    memFree(&townAVLMem);
+    memFree(&townSortAVLMem);
+    memFree(&townNodeListMem);
 
     PROFILER_END();
 }
