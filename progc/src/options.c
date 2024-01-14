@@ -46,6 +46,11 @@ bool parseOptions(int argc, char** argv, Options* outOptions, char errMsg[256])
                 if (comptuationAlreadySet(arg, outOptions, errMsg)) { return false; }
                 outOptions->computation = COMPUTATION_D1;
             }
+            else if (strcmp(arg, "-l") == 0)
+            {
+                if (comptuationAlreadySet(arg, outOptions, errMsg)) { return false; }
+                outOptions->computation = COMPUTATION_L;
+            }
             else
             {
                 snprintf(errMsg, 256, "Option inconnue : « %s »", arg);

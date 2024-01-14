@@ -63,6 +63,10 @@ int main(int argv, char** argc)
     {
         computationD1(&stream);
     }
+    else if (options.computation == COMPUTATION_L)
+    {
+        computationL(&stream);
+    }
     else
     {
         printf("Pas de traitement, lancement du petit programme de test qui a rien à voir\n");

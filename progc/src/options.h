@@ -5,9 +5,10 @@
 typedef enum
 {
     COMPUTATION_NONE,
+    COMPUTATION_D1,
+    COMPUTATION_L,
     COMPUTATION_S,
     COMPUTATION_T,
-    COMPUTATION_D1,
 } ComptuationOption;
 
 typedef struct {

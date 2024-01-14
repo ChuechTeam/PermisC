@@ -13,6 +13,7 @@ add_executable(PermisC
         src/computations/computation_t_ex.c
         src/computations/computation_s.c
         src/computations/computation_d1.c
+        src/computations/computation_l_ex.c
         src/options.c
 )
 
