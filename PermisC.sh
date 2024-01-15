@@ -339,7 +339,11 @@ comp_d2() {
 }
 
 comp_l() {
-  $AWK -F ';' -f "$AWK_COMP_DIR/l.awk" "$CSV_FILE" | sort -t ';' -k2nr | head -n 10 | sort -t ';' -k1,1n
+  if [ $QL1 -eq 1 ]; then
+    "$PERMISC_EXEC" -l "$CSV_FILE"
+  else
+    $AWK -F ';' -f "$AWK_COMP_DIR/l.awk" "$CSV_FILE" | sort -t ';' -k2nr | head -n 10 | sort -t ';' -k1,1n
+  fi
   return $?
 }
 
