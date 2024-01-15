@@ -12,9 +12,11 @@
 #include "route.h"
 #include "mem_alloc.h"
 #include "profile.h"
+#include "map.h"
 
 /*
  * [EXPERIMENTAL!] Computation T implementation
+ * Featuring: The experimental map structure, and the memory arena allocator!
  */
 
 // The memory arenas used for each kind of structure.
@@ -22,8 +24,9 @@
 MemArena routeAVLMem; // Used to allocate RouteAVL nodes.
 MemArena townAVLMem; // Used to allocate TownAVL nodes.
 MemArena townSortAVLMem; // Used to allocate TownSortAVL nodes.
-MemArena townNodeListMem; // Used to allocate the TownNodeList structures.
+MemArena townNodeListMem; // Used to allocate the TownNodeList structures (only the ones we need to allocate).
 
+// Can be changed to uint16_t for 2x more towns stored, but limits the total amount of towns to 65536.
 typedef uint32_t TownNodeId;
 
 #define TN_LIST_SIZE 132
@@ -32,7 +35,7 @@ typedef uint32_t TownNodeId;
 typedef struct TownNodeList
 {
     struct TownNodeList* next;
-    uint16_t size;
+    uint32_t size;
     TownNodeId nodes[TN_LIST_NUM];
 } TownNodeList;
 
@@ -87,14 +90,56 @@ bool tnListSearch(const TownNodeList* list, TownNodeId id)
     }
 }
 
-typedef struct RouteAVL
-{
-    AVL_HEADER(RouteAVL)
+/*
+ * The Route Map: linking each route to its list of visited towns.
+ */
 
-    int routeId;
-    // Allocated in the memory arena.
-    TownNodeList* towns;
-} RouteAVL;
+typedef struct RouteEntry
+{
+    // We don't use a bit field here because of TownNodeList's alignment.
+    uint32_t id;
+    bool occupied;
+    TownNodeList towns;
+} RouteEntry;
+
+typedef struct
+{
+    MAP_HEADER(RouteEntry)
+} RouteMap;
+
+#define CURRENT_MAP_TYPE() RouteMap
+
+static inline uint32_t MAP_HASH_FUNC(const int* key, uint32_t capacityExponent)
+{
+    uint32_t a = * (uint32_t*) key;
+    a *= 2654435769U;
+    return a >> (32 - capacityExponent);
+}
+
+static inline bool MAP_KEY_EQUAL_FUNC(const RouteEntry* entry, const int* key)
+{
+    return entry->id == *key;
+}
+
+static inline bool MAP_GET_OCCUPIED_FUNC(const RouteEntry* entry)
+{
+    return entry->occupied;
+}
+
+static inline void MAP_MARK_OCCUPIED_FUNC(RouteEntry* entry, int* key)
+{
+    entry->occupied = true;
+    entry->id = *key;
+}
+
+static inline uint32_t* MAP_GET_KEY_PTR_FUNC(RouteEntry* entry, uint64_t* scratch)
+{
+    return &entry->id;
+}
+
+MAP_DECLARE_FUNCTIONS_STATIC(routeMap, RouteEntry, int, true)
+
+#undef CURRENT_MAP_TYPE
 
 typedef struct TownAVL
 {
@@ -112,26 +157,6 @@ typedef struct TownSortAVL
 
     TownAVL* townNode;
 } TownSortAVL;
-
-static RouteAVL* routeAVLCreate(const int* routeId)
-{
-    RouteAVL* tree = memAlloc(&routeAVLMem, sizeof(RouteAVL));
-
-    AVL_INIT(tree);
-    tree->routeId = *routeId;
-    tree->towns = memAlloc(&townNodeListMem, sizeof(TownNodeList));
-    tnListInit(tree->towns);
-
-    return tree;
-}
-
-static int routeAVLCompare(const RouteAVL* tree, const int* routeId)
-{
-    return tree->routeId - *routeId;
-}
-
-AVL_DECLARE_FUNCTIONS_STATIC(routeAVL, RouteAVL, const int,
-                             (AVLCreateFunc) &routeAVLCreate, (AVLCompareValueFunc) &routeAVLCompare)
 
 static TownAVL* townAVLCreate(const char* townName)
 {
@@ -189,7 +214,7 @@ AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertPassed, TownSortAVL, TownAVL,
 AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertName, TownSortAVL, TownAVL,
                             (AVLCreateFunc) &townSortAVLCreate, (AVLCompareValueFunc) &townSortAVLCompareName)
 
-static inline void insertTown(const RouteStep* step, RouteAVL* routeNode, TownAVL** towns, const char* townName,
+static inline void insertTown(const RouteStep* step, RouteEntry* routeNode, TownAVL** towns, const char* townName,
                               bool isTownA, TownNodeId* idCounter)
 {
     TownAVL* townNode = townAVLLookup(*towns, townName);
@@ -204,9 +229,9 @@ static inline void insertTown(const RouteStep* step, RouteAVL* routeNode, TownAV
         townNode->firstTown++;
     }
 
-    if (!tnListSearch(routeNode->towns, townNode->id))
+    if (!tnListSearch(&routeNode->towns, townNode->id))
     {
-        tnListAdd(routeNode->towns, townNode->id);
+        tnListAdd(&routeNode->towns, townNode->id);
         townNode->passed++;
     }
 }
@@ -257,26 +282,29 @@ void computationT(RouteStream* stream)
 {
     PROFILER_START("Computation T (Experimental!)");
 
-    RouteAVL* routes = NULL;
-    TownAVL* towns = NULL;
-    TownNodeId idCounter = 0;
-
     memInit(&routeAVLMem, 1 * 1024 * 1024);
     memInit(&townAVLMem, 1 * 1024 * 1024);
     memInit(&townSortAVLMem, 256 * 1024);
     memInit(&townNodeListMem, 1 * 1024 * 1024);
 
+    RouteMap routes;
+    TownAVL* towns = NULL;
+    TownNodeId idCounter = 0;
+
+    routeMapInit(&routes, 1 << 16, 0.7f);
+
     RouteStep step;
     while (rsRead(stream, &step, ROUTE_ID | STEP_ID | TOWN_A | TOWN_B))
     {
-        RouteAVL* routeNode = routeAVLLookup(routes, &step.routeId);
-        if (routeNode == NULL)
+        RouteEntry* entry = routeMapLookup(&routes, step.routeId);
+        if (entry == NULL)
         {
-            routes = routeAVLInsert(routes, &step.routeId, &routeNode, NULL);
+            entry = routeMapInsert(&routes, step.routeId);
+            tnListInit(&entry->towns);
         }
 
-        insertTown(&step, routeNode, &towns, step.townA, true, &idCounter);
-        insertTown(&step, routeNode, &towns, step.townB, false, &idCounter);
+        insertTown(&step, entry, &towns, step.townA, true, &idCounter);
+        insertTown(&step, entry, &towns, step.townB, false, &idCounter);
     }
 
     TownSortAVL *sorted = NULL, *top = NULL;

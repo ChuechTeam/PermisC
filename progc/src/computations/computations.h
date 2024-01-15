@@ -9,6 +9,10 @@ struct RouteStream;
 // EXPERIMENTAL! The awk computation works reliably, but this one is much faster.
 void computationD1(struct RouteStream* stream);
 
+// Computation D2: the top 10 drivers based on the distance traveled
+// EXPERIMENTAL! The awk computation works reliably, but this one is much faster.
+void computationD2(struct RouteStream* stream);
+
 // Computation L: the top 10 routes with the highest total distance.
 // EXPERIMENTAL! Uses a map, and the awk implementation already exists.
 //               Only available in EXPERIMENTAL_ALGO mode.

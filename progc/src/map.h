@@ -11,6 +11,9 @@
  * This is obviously EXPERIMENTAL and shouldn't be used in standard implementations.
  */
 
+#include "compile_settings.h"
+#if EXPERIMENTAL_ALGO
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
@@ -18,9 +21,10 @@
 
 #define MAP_HEADER(type) type* entries; \
     uint32_t capacity; /* Must be a power of two */ \
+    uint32_t capacityExponent; \
     uint32_t size; \
-    float loadFactor;\
-    int sizeThreshold;
+    float loadFactor; \
+    int sizeThreshold; \
 
 // This map works using open addressing.
 typedef struct
@@ -28,7 +32,7 @@ typedef struct
     MAP_HEADER(void)
 } Map;
 
-typedef uint32_t (*HashFunc)(const void* key);
+typedef uint32_t (*HashFunc)(const void* key, uint32_t capacityExponent);
 typedef bool (*KeyEqualFunc)(const void* entryA, void* key);
 typedef bool (*GetOccupiedFunc)(const void* entry);
 typedef void (*MarkOccupiedFunc)(void* entry, void* key);
@@ -51,15 +55,28 @@ static inline void mapInit(Map* map, uint32_t initialCapacity, float loadFactor,
     assert(loadFactor > 0.0f && loadFactor < 1.0f);
 
     map->capacity = initialCapacity;
+    map->capacityExponent = 0;
     map->size = 0;
     map->loadFactor = loadFactor;
     map->sizeThreshold = (int) (initialCapacity * loadFactor);
+
+    // Find the n that equals initialCapacity = 2^n
+    // I could use bsf, but i don't want to add more builtins...
+    uint32_t expCalc = initialCapacity >> 1;
+    while (expCalc != 0)
+    {
+        map->capacityExponent++;
+        expCalc >>= 1;
+    }
 
     map->entries = calloc(initialCapacity, meta.entrySize);
     assert(map->entries);
 }
 
+#ifndef MAP_DIAG
 #define MAP_DIAG 0
+#endif
+
 #if MAP_DIAG
 static uint64_t findCalls = 0;
 static uint64_t findIter = 0;
@@ -74,16 +91,23 @@ static inline void* mapFindEntry(Map* map, void* key, const MapMeta meta)
 
     uint8_t* entries = map->entries;
 
-    uint32_t i = meta.hashFunc(key) & (map->capacity-1);
+    uint32_t i = meta.hashFunc(key, map->capacityExponent) & (map->capacity-1);
     // Continue searching if we come across an occupied slot by some other key
     while (meta.getOccupiedFunc(entries + meta.entrySize * i) &&
         !meta.keyEqualFunc(entries + meta.entrySize * i, key))
     {
-        i = (i + 1) & (map->capacity-1);
+        i = (i + 1) & (map->capacity - 1);
 #if MAP_DIAG
         findIter++;
 #endif
     }
+
+#if MAP_DIAG
+    if (findCalls % 100000 == 0)
+    {
+        fprintf(stderr, " [MAP STATS] avg=%f\n", (float)findIter / (float)findCalls);
+    }
+#endif
 
     return entries + meta.entrySize * i;
 }
@@ -105,17 +129,14 @@ static void mapGrow(Map* map, MapMeta meta);
 
 static inline void* mapInsert(Map* map, void* key, const MapMeta meta)
 {
-    void* entry = mapFindEntry(map, key, meta);
-
-    assert(!meta.getOccupiedFunc(entry));
-
     // If inserting this element would exceed the load factor threshold, grow!
     if (map->size + 1 >= map->sizeThreshold)
     {
         mapGrow(map, meta);
-
-        entry = mapFindEntry(map, key, meta);
     }
+
+    void* entry = mapFindEntry(map, key, meta);
+    assert(!meta.getOccupiedFunc(entry));
 
     meta.markOccupiedFunc(entry, key);
     map->size++;
@@ -127,14 +148,17 @@ static void mapGrow(Map* map, const MapMeta meta)
 {
     uint32_t prevCapacity = map->capacity;
     uint32_t nextCapacity = map->capacity * 2;
+    uint32_t nextExponent = map->capacityExponent + 1;
     while ((int) (nextCapacity * map->loadFactor) <= map->size + 1)
     {
         nextCapacity *= 2;
+        nextExponent++;
     }
     void* prevSlots = map->entries;
     void* nextSlots = calloc(nextCapacity, meta.entrySize);
 
     map->capacity = nextCapacity;
+    map->capacityExponent = nextExponent;
     map->sizeThreshold = (int) (nextCapacity * map->loadFactor);
     map->entries = nextSlots;
 
@@ -171,7 +195,7 @@ static void mapGrow(Map* map, const MapMeta meta)
 #define MAP_MARK_OCCUPIED_FUNC_NAME() M_CONCAT(CURRENT_MAP_TYPE(), _markOccupied)
 #define MAP_GET_KEY_PTR_FUNC_NAME() M_CONCAT(CURRENT_MAP_TYPE(), _getKeyPtr)
 
-#define MAP_HASH_FUNC(param) MAP_HASH_FUNC_NAME() (param)
+#define MAP_HASH_FUNC(param1, param2) MAP_HASH_FUNC_NAME() (param1, param2)
 #define MAP_KEY_EQUAL_FUNC(param1, param2) MAP_KEY_EQUAL_FUNC_NAME() (param1, param2)
 #define MAP_GET_OCCUPIED_FUNC(param) MAP_GET_OCCUPIED_FUNC_NAME() (param)
 #define MAP_MARK_OCCUPIED_FUNC(param1, param2) MAP_MARK_OCCUPIED_FUNC_NAME() (param1, param2)
@@ -208,5 +232,7 @@ static void mapGrow(Map* map, const MapMeta meta)
     { \
         free(map->entries); \
     }
-
+#else
+#warning "map.h is only available in EXPERIMENTAL_ALGO mode!"
+#endif
 #endif //MAP_H

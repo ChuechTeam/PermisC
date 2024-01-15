@@ -320,7 +320,7 @@ if ! type "$AWK" > /dev/null 2>&1; then
 fi
 
 # Computations D1, D2 and L are done with awk. T and S are done with the PermisC executable.
-# Computation D1 can be done with the experimental implementation in PermisC.
+# Computation D1, D2 and L can be done with the experimental implementation in PermisC.
 # The 141 exit code should be ignored later as it means the sort command was interrupted by a SIGPIPE,
 # which we arguably don't care. (Sorry to break sort's feelings...)
 
@@ -334,12 +334,16 @@ comp_d1() {
 }
 
 comp_d2() {
-  $AWK -F ';' -f "$AWK_COMP_DIR/d2.awk" "$CSV_FILE" | sort -t ';' -k2 -nr | head -n 10
+  if [ $QL2 -eq 1 ]; then
+    "$PERMISC_EXEC" -d2 "$CSV_FILE"
+  else
+    $AWK -F ';' -f "$AWK_COMP_DIR/d2.awk" "$CSV_FILE" | sort -t ';' -k2 -nr | head -n 10
+  fi
   return $?
 }
 
 comp_l() {
-  if [ $QL1 -eq 1 ]; then
+  if [ $QL2 -eq 1 ]; then
     "$PERMISC_EXEC" -l "$CSV_FILE"
   else
     $AWK -F ';' -f "$AWK_COMP_DIR/l.awk" "$CSV_FILE" | sort -t ';' -k2nr | head -n 10 | sort -t ';' -k1,1n

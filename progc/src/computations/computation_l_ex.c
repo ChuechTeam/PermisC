@@ -11,7 +11,7 @@
 
 MemArena routeSortAVLMem;
 
-typedef struct CoolEntry
+typedef struct RouteDistEntry
 {
     bool occupied : 1;
     uint32_t id : 31;
@@ -25,11 +25,11 @@ typedef struct
 
 #define CURRENT_MAP_TYPE() RouteDistMap
 
-static inline uint32_t MAP_HASH_FUNC(const int* key)
+static inline uint32_t MAP_HASH_FUNC(const int* key, uint32_t capacityExponent)
 {
     uint32_t a = * (uint32_t*) key;
-    a *= 2654435761U;
-    return a >> 7;
+    a *= 2654435769U;
+    return a >> (32 - capacityExponent);
 }
 
 static inline bool MAP_KEY_EQUAL_FUNC(const RouteDistEntry* entry, const int* key)
@@ -92,7 +92,7 @@ static int routeSortAVLCompareDist(RouteSortAVL* tree, RouteSortInfo* info)
     }
     else
     {
-        return 0;
+        return tree->info.routeId - info->routeId;
     }
 }
 

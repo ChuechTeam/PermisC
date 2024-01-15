@@ -85,7 +85,8 @@ static void* memAlloc(MemArena* arena, size_t size)
         arena->block = memBlockAlloc(arena->block, arena->blockSize);
         assert(arena->block);
 
-        arena->blockPos = 0;
+        // Advance the position in advance as we've just allocated a new item.
+        arena->blockPos = size;
 
         return arena->block->data;
     }

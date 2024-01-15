@@ -1,3 +1,7 @@
+#include "compile_settings.h"
+
+#if !EXPERIMENTAL_ALGO
+
 #include "avl.h"
 #include "computations.h"
 #include "route.h"
@@ -72,13 +76,13 @@ void calcAvg(TravelAVL* tree)
 }
 
 TravelSortAVL* travelSortAVLCreate(Travel *travel) {
-  TravelSortAVL *tree = malloc(sizeof(TravelSortAVL));
-  assert(tree);
+    TravelSortAVL *tree = malloc(sizeof(TravelSortAVL));
+    assert(tree);
 
-  tree->t = travel;
-  AVL_INIT(tree);
+    tree->t = travel;
+    AVL_INIT(tree);
 
-  return tree;
+    return tree;
 }
 
 int travelSortAVLCompare(TravelSortAVL* tree, Travel* travel)
@@ -114,7 +118,7 @@ void printTop50(TravelSortAVL* tr, int* n)
     {
         *n += 1;
         printf("%d;%d;%f;%f;%f;%f\n", *n,
-            tr->t->id, tr->t->min, tr->t->sumOrAvg, tr->t->max, tr->t->max - tr->t->min);
+               tr->t->id, tr->t->min, tr->t->sumOrAvg, tr->t->max, tr->t->max - tr->t->min);
     }
 
     printTop50(tr->left, n);
@@ -155,7 +159,7 @@ void computationS(RouteStream* stream)
     RouteStep step;
     while (rsRead(stream, &step, ROUTE_ID | DISTANCE))
     {
-        Travel tra = { .id = step.routeId };
+        Travel tra = {.id = step.routeId};
         TravelAVL* found = travelAVLLookup(travels, &tra);
         if (found == NULL)
         {
@@ -194,3 +198,5 @@ void computationS(RouteStream* stream)
 
     PROFILER_END();
 }
+
+#endif

@@ -46,6 +46,11 @@ bool parseOptions(int argc, char** argv, Options* outOptions, char errMsg[256])
                 if (comptuationAlreadySet(arg, outOptions, errMsg)) { return false; }
                 outOptions->computation = COMPUTATION_D1;
             }
+            else if (strcmp(arg, "-d2") == 0)
+            {
+                if (comptuationAlreadySet(arg, outOptions, errMsg)) { return false; }
+                outOptions->computation = COMPUTATION_D2;
+            }
             else if (strcmp(arg, "-l") == 0)
             {
                 if (comptuationAlreadySet(arg, outOptions, errMsg)) { return false; }

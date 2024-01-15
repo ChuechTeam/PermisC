@@ -63,6 +63,10 @@ int main(int argv, char** argc)
     {
         computationD1(&stream);
     }
+    else if (options.computation == COMPUTATION_D2)
+    {
+        computationD2(&stream);
+    }
     else if (options.computation == COMPUTATION_L)
     {
         computationL(&stream);
