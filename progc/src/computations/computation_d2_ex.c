@@ -3,9 +3,10 @@
 #include <stdio.h>
 
 #if EXPERIMENTAL_ALGO
+#include <string.h>
+
 #include "route.h"
 #include "avl.h"
-#include "map.h"
 #include "profile.h"
 #include "mem_alloc.h"
 
@@ -141,7 +142,7 @@ void computationD2(RouteStream* stream)
 }
 
 #else
-void computationD2(struct RouteStream*)
+void computationD2(struct RouteStream* s)
 {
     fprintf(stderr, "Cannot use computation D2 without experimental algorithms enabled!\n");
     exit(9);

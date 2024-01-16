@@ -1,8 +1,6 @@
 #ifndef COMPUTATIONS_H
 #define COMPUTATIONS_H
 
-#include "compile_settings.h"
-
 struct RouteStream;
 
 // Computation D1: the top 10 drivers based on the number of routes taken.

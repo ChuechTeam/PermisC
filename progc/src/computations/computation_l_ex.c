@@ -183,9 +183,10 @@ void computationL(RouteStream* stream)
 }
 
 #else
-void computationL(struct RouteStream*)
+void computationL(struct RouteStream* s)
 {
     fprintf(stderr, "Cannot use computation L without experimental algorithms enabled!\n");
     exit(9);
 }
 #endif
+

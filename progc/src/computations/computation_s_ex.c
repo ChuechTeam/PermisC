@@ -2,12 +2,13 @@
 
 #if EXPERIMENTAL_ALGO
 
-#include "avl.h"
-#include "computations.h"
-#include "route.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+
+#include "avl.h"
+#include "computations.h"
+#include "route.h"
 #include "profile.h"
 #include "map.h"
 #include "mem_alloc.h"

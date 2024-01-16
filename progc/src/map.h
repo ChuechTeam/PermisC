@@ -12,12 +12,14 @@
  */
 
 #include "compile_settings.h"
+
 #if EXPERIMENTAL_ALGO
 
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define MAP_HEADER(type) type* entries; \
     uint32_t capacity; /* Must be a power of two */ \

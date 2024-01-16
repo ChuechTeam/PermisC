@@ -1,3 +1,7 @@
+#include "compile_settings.h"
+
+#if !EXPERIMENTAL_ALGO
+
 #include "avl.h"
 #include "computations.h"
 #include "route.h"
@@ -5,9 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "profile.h"
-#include "compile_settings.h"
-
-#if !EXPERIMENTAL_ALGO
 
 // AVL with all the ids
 typedef struct IdAVL
