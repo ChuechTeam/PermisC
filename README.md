@@ -10,7 +10,7 @@ Néanmoins, il existe un fichier CMake pour pouvoir compiler le programme C sur 
 de graphiques est impossible.
 
 ## Prérequis
-- Un compilateur C (gcc, clang, ...), inclus dans le paquet `build-essential` sur Debian
+- Un compilateur C (gcc, clang, ...), inclus dans le paquet `build-essential` sur Debian compatible avec le standard C11
 - Make, inclus dans le paquet `build-essential` sur Debian
 - Gnuplot 5.0 ou plus récent, paquet `gnuplot` sur Debian
 - Une implémentation d'awk, mawk est vivement recommandé et choisi si possible
@@ -49,9 +49,8 @@ mais aussi de plus en plus efficaces :
   - Awk : pour D2 et L
   - Algorithme C de base : D1, T et S
 - `-Q2` : utilise les algorithmes expérimentaux en C, pouvant utiliser des [tables de hachage](https://fr.wikipedia.org/wiki/Table_de_hachage) :
-  - Awk : pour D2 et L
-  - Algorithme C de base : T et S
-  - Algorithme C expérimental : D1
+  - Algorithme C de base : S (légèrement amélioré)
+  - Algorithme C expérimental : D1, D2, L et T
 - `-Q3` : active les [instructions AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions)
 pour une lecture de fichier plus rapide ; requiert un processeur compatible AVX2
 

@@ -64,7 +64,7 @@ Options :
   -t                         Lancer le traitement T : les villes les plus traversées
   -s                         Lancer le traitement S : les statistiques sur la distance des trajets
   -Q, --quick [n]            Utiliser des implémentations natives de calcul (au lieu de awk) plus rapides
-                             pour le traitement D1, de plus en plus avancées selon le niveau choisi :
+                             pour tous les traitements, de plus en plus avancées selon le niveau choisi :
                                  0 : Utiliser awk si possible
                                  1 : Utiliser les implémentations basiques en C (AVL uniquement)
                                  2 : Utiliser les implémentations avancées en C (table de hachage, expérimental !)
@@ -114,6 +114,7 @@ fi
 
 COMPUTATIONS=()
 QUICK_LEVEL=0
+LIVING_DANGEROUSLY=0 # Little funny easter egg for when you use --exceed-speed-limits/--excès-de-vitesse
 
 # Adds a computation to the COMPUTATIONS array, while ignoring duplicates.
 add_computation() {
@@ -166,7 +167,11 @@ for (( i=2; i<=$#; i++ )); do
   --experimental|-X)
       QUICK_LEVEL=2 ;;
   --exceed-speed-limits|--excès-de-vitesse|-E) # Little easter egg (not anymore...)
-      QUICK_LEVEL=3 ;;
+      QUICK_LEVEL=3 
+      if [ "$arg" != "-E" ]; then
+        LIVING_DANGEROUSLY=1
+      fi
+      ;;
   -*)
       print_arg_error "Option « $arg » inconnue."
       exit 1 ;;
@@ -241,13 +246,13 @@ export EXPERIMENTAL_ALGO_AVX=${EXPERIMENTAL_ALGO_AVX:-$QL3}
 # - The build variables have changed (if the quickness level changed, we need to recompile)
 # - The user wants to force a recompilation (using the CLEAN variable)
 if [ ! -f "$PERMISC_EXEC" ] || ! make -C "$PROGC_DIR" check_vars > /dev/null 2>&1 || [ "$CLEAN" -eq 1 ]; then
-  echo -n "Compilation de l'exécutable PermisC..."
+  echo -n "🏭 | ⏳ Compilation de l'exécutable PermisC..."
   if ! make -C "$PROGC_DIR" --no-print-directory build > "$TEMP_DIR/build.log" 2>&1; then
-    echo " Échec !"
+    echo -e "\r🏭 | ❌ Compilation de l'exécutable PermisC... Échec !"
     echo "Erreur lors de la compilation de PermisC. Lisez le fichier temp/build.log pour plus de détails." >&2
     exit 2
   else
-    echo " Terminé !"
+    echo -e "\r🏭 | ✅ Compilation de l'exécutable PermisC... Terminé !"
   fi
 fi
 
@@ -393,7 +398,8 @@ comp_dispatch() {
 # Also measure the time it takes to run each computation.
 for comp in "${COMPUTATIONS[@]}"; do
   COMP_NAME=$(comp_name "$comp") # Uppercase the computation name
-  echo -n "Traitement $COMP_NAME en cours..."
+  TITLE="Traitement $COMP_NAME en cours..."
+  echo -n "⚙️  | ⏳ $TITLE"
 
   # Seconds and nanoseconds concatenated make a fixed-point decimal number
   TIME_START="$(measure_time)"
@@ -401,13 +407,13 @@ for comp in "${COMPUTATIONS[@]}"; do
     ERR_FILE="$(simple_path "$(comp_err_file "$comp")")"
     TIME_END="$(measure_time)"
     ELAPSED_MS=$(( (TIME_END - TIME_START)/1000000 ))
-    echo " Échec ! (en $ELAPSED_MS ms)"
+    echo -e "\r⚙️  | ❌ $TITLE Échec ! (en $ELAPSED_MS ms)"
     echo "Erreur lors du traitement $COMP_NAME. Lisez le fichier $ERR_FILE pour plus de détails." >&2
     exit 3
   fi
   TIME_END="$(measure_time)"
   ELAPSED_MS=$(( (TIME_END - TIME_START)/1000000 ))
-  echo " Terminé en $ELAPSED_MS ms !"
+  echo -e "\r⚙️  | ✅ $TITLE Terminé en $ELAPSED_MS ms !"
 done
 
 
@@ -442,14 +448,25 @@ graph_dispatch() {
 }
 
 # Draw the graph for each computation
-echo "Génération des graphiques..."
+echo -n "📈 | ⏳ Génération des graphiques..."
 for comp in "${COMPUTATIONS[@]}"; do
   if ! graph_dispatch "$comp"; then
     COMP_NAME=$(comp_name "$comp")
     ERR_FILE="$(simple_path "$(graph_err_file "$comp")")"
+    echo -e "\r📈 | ❌ Génération des graphiques... Échec !"
     echo "Erreur lors de la génération du graphique du traitement $COMP_NAME. Lisez le fichier $ERR_FILE pour plus de détails." >&2
     exit 4
   fi
 done
 
-echo "Programme terminé ! Les graphiques sont disponibles dans le dossier « images »."
+echo -e "\r📈 | ✅ Génération des graphiques... Terminé !"
+if [ "$LIVING_DANGEROUSLY" -eq 1 ]; then
+  RED="\033[38;5;196m" # Red color
+  BOLD="\033[1m"
+  RESET="\033[0m"
+  echo "🚚💨 Programme terminé !"
+  echo -e "👮 ${RED}${BOLD}Vous êtes en état d'arrestation pour excès de vitesse ! 
+👮 Consultez les graphiques dans le dossier « images » dans les plus brefs délais.${RESET}"
+else
+  echo "🚚 Programme terminé ! Les graphiques sont disponibles dans le dossier « images »."
+fi
