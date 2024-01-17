@@ -21,7 +21,6 @@
 
 // The memory arenas used for each kind of structure.
 // Currently those are global variables, should these be passed to the create functions instead?
-MemArena routeAVLMem; // Used to allocate RouteAVL nodes.
 MemArena townAVLMem; // Used to allocate TownAVL nodes.
 MemArena townSortAVLMem; // Used to allocate TownSortAVL nodes.
 MemArena townNodeListMem; // Used to allocate the TownNodeList structures (only the ones we need to allocate).
@@ -73,7 +72,7 @@ void tnListAdd(TownNodeList* list, TownNodeId id)
 
 bool tnListSearch(const TownNodeList* list, TownNodeId id)
 {
-    for (int i = 0; i < list->size; ++i)
+    for (uint32_t i = 0; i < list->size; ++i)
     {
         if (list->nodes[i] == id)
         {
@@ -111,7 +110,7 @@ typedef struct
 
 static inline uint32_t MAP_HASH_FUNC(const int* key, uint32_t capacityExponent)
 {
-    uint32_t a = * (uint32_t*) key;
+    uint32_t a = *(uint32_t*) key;
     a *= 2654435769U;
     return a >> (32 - capacityExponent);
 }
@@ -282,7 +281,6 @@ void computationT(RouteStream* stream)
 {
     PROFILER_START("Computation T (Experimental!)");
 
-    memInit(&routeAVLMem, 1 * 1024 * 1024);
     memInit(&townAVLMem, 1 * 1024 * 1024);
     memInit(&townSortAVLMem, 256 * 1024);
     memInit(&townNodeListMem, 1 * 1024 * 1024);
@@ -314,7 +312,6 @@ void computationT(RouteStream* stream)
     extractTop10(sorted, &top, &n);
     printTop10(top);
 
-    memFree(&routeAVLMem);
     memFree(&townAVLMem);
     memFree(&townSortAVLMem);
     memFree(&townNodeListMem);

@@ -15,7 +15,7 @@ typedef struct IdAVL
 {
     AVL_HEADER(IdAVL)
 
-    int id;
+    uint32_t id;
 } IdAVL;
 
 typedef struct TownAVL
@@ -34,23 +34,23 @@ typedef struct TownSortAVL
     TownAVL* value; // Pointer to TownAVL node.
 } TownSortAVL;
 
-IdAVL* idAVLCreate(int* id)
+IdAVL* idAVLCreate(uint32_t* id)
 {
-    IdAVL* A = malloc(sizeof(IdAVL)); // création de l'AVL d'ID
+    IdAVL* A = malloc(sizeof(IdAVL)); // Create the tree using malloc.
     assert(A);
     A->id = *id;
     AVL_INIT(A);
     return A;
 }
 
-int idAVLCompare(IdAVL* tree, int* id)
+int idAVLCompare(IdAVL* tree, uint32_t* id)
 {
     return tree->id - *id;
 }
 
-AVL_DECLARE_INSERT_FUNCTION(idAVLInsert, IdAVL, const int,
+AVL_DECLARE_INSERT_FUNCTION(idAVLInsert, IdAVL, const uint32_t,
                             (AVLCreateFunc) &idAVLCreate, (AVLCompareValueFunc) &idAVLCompare)
-AVL_DECLARE_LOOKUP_FUNCTION(idAVLLookup, IdAVL, const int,
+AVL_DECLARE_LOOKUP_FUNCTION(idAVLLookup, IdAVL, const uint32_t,
                             (AVLCompareValueFunc) &idAVLCompare)
 
 TownAVL* townAVLCreate(const char* townName)

@@ -35,7 +35,7 @@ typedef struct LLStr
 } LLStr;
 
 // Adds a string to the end of the list. The list pointer must not be NULL.
-void llStrAdd(LLStr* list, char* value)
+static void llStrAdd(LLStr* list, char* value)
 {
     assert(list);
 
@@ -217,7 +217,7 @@ typedef struct RouteAVL
     AVL_HEADER(RouteAVL)
 
     // The route ID.
-    int routeId;
+    uint32_t routeId;
 
     // The linked list of all drivers passing by this route.
     // This list must be freed when destroying the AVL.
@@ -225,7 +225,7 @@ typedef struct RouteAVL
     LLStr drivers;
 } RouteAVL;
 
-RouteAVL* routeAVLCreate(const int* routeId)
+RouteAVL* routeAVLCreate(const uint32_t* routeId)
 {
     RouteAVL* avl = malloc(sizeof(RouteAVL));
     assert(avl); // Make sure we have enough memory.
@@ -239,13 +239,13 @@ RouteAVL* routeAVLCreate(const int* routeId)
     return avl;
 }
 
-int routeAVLCompare(const RouteAVL* a, const int* routeId)
+int routeAVLCompare(const RouteAVL* a, const uint32_t* routeId)
 {
     return a->routeId - *routeId;
 }
 
 // Declare the routeAVLInsert function.
-AVL_DECLARE_INSERT_FUNCTION(routeAVLInsert, RouteAVL, int,
+AVL_DECLARE_INSERT_FUNCTION(routeAVLInsert, RouteAVL, uint32_t,
                             (AVLCreateFunc) &routeAVLCreate, (AVLCompareValueFunc) &routeAVLCompare)
 #endif
 /*

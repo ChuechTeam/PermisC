@@ -26,7 +26,7 @@
     uint32_t capacityExponent; \
     uint32_t size; \
     float loadFactor; \
-    int sizeThreshold; \
+    uint32_t sizeThreshold; \
 
 // This map works using open addressing.
 typedef struct
@@ -151,7 +151,7 @@ static void mapGrow(Map* map, const MapMeta meta)
     uint32_t prevCapacity = map->capacity;
     uint32_t nextCapacity = map->capacity * 2;
     uint32_t nextExponent = map->capacityExponent + 1;
-    while ((int) (nextCapacity * map->loadFactor) <= map->size + 1)
+    while ((uint32_t) (nextCapacity * map->loadFactor) <= map->size + 1)
     {
         nextCapacity *= 2;
         nextExponent++;
@@ -165,7 +165,7 @@ static void mapGrow(Map* map, const MapMeta meta)
     map->entries = nextSlots;
 
     // Put all elements back in the new slots.
-    for (int i = 0; i < prevCapacity; ++i)
+    for (uint32_t i = 0; i < prevCapacity; ++i)
     {
         void* entry = ((uint8_t*) prevSlots + meta.entrySize * i);
         if (meta.getOccupiedFunc(entry))

@@ -27,7 +27,7 @@ typedef struct
 
 static inline uint32_t MAP_HASH_FUNC(const int* key, uint32_t capacityExponent)
 {
-    uint32_t a = * (uint32_t*) key;
+    uint32_t a = *(uint32_t*) key;
     a *= 2654435769U;
     return a >> (32 - capacityExponent);
 }
@@ -60,7 +60,11 @@ MAP_DECLARE_FUNCTIONS_STATIC(routeDist, RouteDistEntry, int, true)
 
 #undef CURRENT_MAP_TYPE
 
-typedef struct { int routeId; float dist; } RouteSortInfo;
+typedef struct
+{
+    int routeId;
+    float dist;
+} RouteSortInfo;
 
 typedef struct RouteSortAVL
 {
@@ -102,10 +106,10 @@ static int routeSortAVLCompareId(RouteSortAVL* tree, RouteSortInfo* info)
 }
 
 static AVL_DECLARE_INSERT_FUNCTION(routeSortAVLInsertDist, RouteSortAVL, RouteSortInfo,
-                            (AVLCreateFunc) &routeSortAVLCreate, (AVLCompareValueFunc) &routeSortAVLCompareDist)
+                                   (AVLCreateFunc) &routeSortAVLCreate, (AVLCompareValueFunc) &routeSortAVLCompareDist)
 
 static AVL_DECLARE_INSERT_FUNCTION(routeSortAVLInsertId, RouteSortAVL, RouteSortInfo,
-                            (AVLCreateFunc) &routeSortAVLCreate, (AVLCompareValueFunc) &routeSortAVLCompareId)
+                                   (AVLCreateFunc) &routeSortAVLCreate, (AVLCompareValueFunc) &routeSortAVLCompareId)
 
 static void extractTop10(RouteSortAVL* distSorted, RouteSortAVL** top, int* n)
 {
@@ -162,7 +166,7 @@ void computationL(RouteStream* stream)
     }
 
     RouteSortAVL* distSorted = NULL;
-    for (int i = 0; i < map.capacity; ++i)
+    for (uint32_t i = 0; i < map.capacity; ++i)
     {
         if (map.entries[i].occupied)
         {
@@ -189,4 +193,3 @@ void computationL(struct RouteStream* s)
     exit(9);
 }
 #endif
-

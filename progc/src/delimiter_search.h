@@ -84,8 +84,8 @@ static inline void searchDelimiters(char* a, char* delimiters[6])
     __m256i newLine = _mm256_set1_epi8('\n');
 
     uint64_t mask = makeNewMask64(a, semiColon, newLine);
-    int skipNextDelimOffset = __builtin_ctzll(mask)+1;
-    char* line = a-1;
+    int skipNextDelimOffset = __builtin_ctzll(mask) + 1;
+    char* line = a - 1;
     assert(*a != '\0');
 
     // Instruct the compiler to unroll this loop, it seems to be a bit faster.
@@ -97,11 +97,11 @@ static inline void searchDelimiters(char* a, char* delimiters[6])
         while (d_unlikely(mask == 0))
         {
             a += 64;
-            line = a-1;
+            line = a - 1;
             assert(*a != '\0');
 
             mask = makeNewMask64(a, semiColon, newLine);
-            skipNextDelimOffset = __builtin_ctzll(mask)+1;
+            skipNextDelimOffset = __builtin_ctzll(mask) + 1;
         }
 
         // For some awkward reason, putting this instruction at the start
@@ -119,7 +119,7 @@ static inline void searchDelimiters(char* a, char* delimiters[6])
             assert(*line == ';');
         }
 
-        skipNextDelimOffset = __builtin_ctzll(mask)+1;
+        skipNextDelimOffset = __builtin_ctzll(mask) + 1;
     }
 #endif
 }
@@ -128,7 +128,7 @@ static inline void searchDelimiters(char* a, char* delimiters[6])
 static uint32_t makeNewMask(const char* a, __m256i semiColon, __m256i newLine)
 {
     // Load the 32 characters of the string a into a vector.
-    __m256i aVec = _mm256_loadu_si256((__m256i*)a);
+    __m256i aVec = _mm256_loadu_si256((__m256i*) a);
 
     // Compare the string vector to one filled with ';' or '\n' characters to locate delimiters
     // semiColonFound[n] = a[n] == ';' ? 0xFF : 0x00
@@ -152,7 +152,7 @@ static uint64_t makeNewMask64(const char* a, __m256i semiColon, __m256i newLine)
     uint32_t lo = makeNewMask(a, semiColon, newLine);
     uint32_t hi = makeNewMask(a + 32, semiColon, newLine);
 
-    return (uint64_t)hi << 32 | lo;
+    return (uint64_t) hi << 32 | lo;
 }
 #endif
 

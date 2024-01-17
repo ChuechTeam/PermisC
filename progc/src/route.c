@@ -61,7 +61,7 @@ bool rsCheck(const RouteStream* stream, char errMsg[ERR_MAX])
     {
         char* fileError = strerror(errno);
         snprintf(errMsg,ERR_MAX, "%s", fileError);
-        errMsg[ERR_MAX-1] = '\0';
+        errMsg[ERR_MAX - 1] = '\0';
         return false;
     }
     else if (!stream->readBuf)
@@ -69,7 +69,8 @@ bool rsCheck(const RouteStream* stream, char errMsg[ERR_MAX])
         snprintf(errMsg, ERR_MAX, "Pas assez de mémoire pour allouer le buffer de lecture");
         return false;
     }
-    else {
+    else
+    {
         return true;
     }
 }
@@ -79,7 +80,7 @@ bool rsCheck(const RouteStream* stream, char errMsg[ERR_MAX])
 // If the buffer doesn't have enough room to fit the last line entirely,
 // the buffer will be truncated to the line preceding it,
 // and the file cursor will be rolled back to the beginning of the line.
-bool continueBufferRead(RouteStream* stream)
+static bool continueBufferRead(RouteStream* stream)
 {
     assert(stream);
 
@@ -163,7 +164,7 @@ bool continueBufferRead(RouteStream* stream)
  * Since we know the exact format of integers and floats, writing them is really easy.
  */
 
-float readUnsignedFloat(char* const start, char* const end)
+static float readUnsignedFloat(char* const start, char* const end)
 {
     uint32_t intPart = 0, decPart = 0;
     uint32_t decSize = 1;
@@ -200,17 +201,17 @@ float readUnsignedFloat(char* const start, char* const end)
         cursor++;
     }
 
-    return (float)intPart + (float)decPart / decSize;
+    return (float) intPart + (float) decPart / decSize;
 }
 
-char* readStr(char* start, char* end)
+static char* readStr(char* start, char* end)
 {
     *end = '\0';
 
     return start;
 }
 
-uint32_t readUnsignedInt(char* const start, char* const end)
+static uint32_t readUnsignedInt(char* const start, char* const end)
 {
     uint32_t number = 0;
 

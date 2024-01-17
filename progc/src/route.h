@@ -15,8 +15,8 @@
 
 typedef struct RouteStep
 {
-    int routeId;
-    int stepId;
+    uint32_t routeId;
+    uint32_t stepId;
     char* townA; // Invalidated on the next call to rsRead
     char* townB; // Invalidated on the next call to rsRead
     float distance;

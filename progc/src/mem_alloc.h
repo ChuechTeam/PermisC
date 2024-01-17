@@ -66,6 +66,8 @@ static void memInit(MemArena* arena, const size_t blockSize)
 // Exits the program if the allocation fails.
 static void* memAlloc(MemArena* arena, size_t size)
 {
+    assert(arena);
+
     void* fitPtr = arena->block->data + arena->blockPos;
 
     // Align to 8 bytes
@@ -96,6 +98,8 @@ static void* memAlloc(MemArena* arena, size_t size)
 // Frees all the blocks allocated by the arena allocator.
 static void memFree(MemArena* arena)
 {
+    assert(arena);
+
     MemBlock* it = arena->block;
     while (it)
     {

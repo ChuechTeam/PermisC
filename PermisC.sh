@@ -27,7 +27,7 @@ fi
 # Some commands don't work on Mac OS for example, and some bash features are missing,
 # so we need to adjust stuff for it to just work.
 if [[ "$OSTYPE" != "linux-gnu"* ]] || (( BASH_VERSINFO[0] < 4 )) || [ "${COMPAT_MODE:-0}" -eq 1 ]; then
-  echo "Attention : mode de compatibilité activé ! (Bash < 4 ou OS autre que GNU/Linux)" >&2
+  echo "⚠️ Attention : mode de compatibilité activé ! (Bash < 4 ou OS autre que GNU/Linux)" >&2
   COMPAT_MODE=1
 else
   COMPAT_MODE=0
@@ -63,6 +63,7 @@ Options :
   -l                         Lancer le traitement L : les trajets les plus longs
   -t                         Lancer le traitement T : les villes les plus traversées
   -s                         Lancer le traitement S : les statistiques sur la distance des trajets
+  -A, --all                  Lancer tous les traitements
   -Q, --quick [n]            Utiliser des implémentations natives de calcul (au lieu de awk) plus rapides
                              pour tous les traitements, de plus en plus avancées selon le niveau choisi :
                                  0 : Utiliser awk si possible
@@ -140,6 +141,8 @@ for (( i=2; i<=$#; i++ )); do
   case "$arg" in
   -d1|-d2|-l|-t|-s)
       add_computation "${arg:1}" ;;
+  --all|-A)
+      COMPUTATIONS=(d1 d2 l t s) ;;
   --quick|-Q*)
       # Parse the quickness level.
       NEXT=$(( i+1 )); SKIP_NEXT=0; SHORT_ARG=0
@@ -150,7 +153,7 @@ for (( i=2; i<=$#; i++ )); do
       fi
       if ! is_number "${QL_STR:-}" && (( i != $# )); then
         if [ $SHORT_ARG -eq 1 ] && [ -n "$QL_STR" ]; then
-          print_arg_error "Le nombre suité après « -Q » (« $QL_STR ») est invalide."
+          print_arg_error "Le nombre situé après « -Q » (« $QL_STR ») est invalide."
           exit 1
         fi
         QL_STR="${!NEXT}"
@@ -166,7 +169,7 @@ for (( i=2; i<=$#; i++ )); do
       fi ;;
   --experimental|-X)
       QUICK_LEVEL=2 ;;
-  --exceed-speed-limits|--excès-de-vitesse|-E) # Little easter egg (not anymore...)
+  --exceed-speed-limits|--excès-de-vitesse|-E) # Little easter egg (not anymore... well now yes there is!)
       QUICK_LEVEL=3 
       if [ "$arg" != "-E" ]; then
         LIVING_DANGEROUSLY=1
