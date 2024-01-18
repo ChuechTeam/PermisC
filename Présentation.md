@@ -140,7 +140,7 @@ Le graphique généré est le suivant :
 
 ### 6. Lancement de tous les traitements avec la vitesse maximale
 ```bash
-./PermisC.sh data.csv -d1 -d2 -l -t -s -Q3
+./PermisC.sh data.csv -d1 -d2 -l -t -s -Q2
 ```
 **Sortie :**
 ```

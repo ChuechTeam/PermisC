@@ -9,7 +9,7 @@ add_executable(PermisC
         src/profile.c
         src/avl.c
         src/string_avl.c
-        src/computations/computation_d1.c
+        src/computations/computation_d1_ex.c
         src/computations/computation_d2_ex.c
         src/computations/computation_l_ex.c
         src/computations/computation_s.c
@@ -35,10 +35,12 @@ if (MSVC)
 endif ()
 
 if (UNIX)
-    target_compile_options(PermisC PUBLIC -Wall -Wno-unused-function -fsanitize=address)
-    target_link_options(PermisC PUBLIC -fsanitize=address)
+    target_compile_options(PermisC PUBLIC -Wall -Wno-unused-function)
     if (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
         target_compile_options(PermisC PUBLIC -flto)
+    else ()
+        target_compile_options(PermisC PUBLIC -fsanitize=address)
+        target_link_options(PermisC PUBLIC -fsanitize=address)
     endif ()
 endif ()
 

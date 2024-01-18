@@ -45,13 +45,9 @@ mais aussi de plus en plus efficaces :
 - `-Q0` : utilise les algorithmes par défaut, utilisant Awk si possible, ou l'algorithme de base en C sinon :
   - Awk : pour D1, D2 et L
   - Algorithme C de base : T et S
-- `-Q1` : utilise les algorithmes basiques en C, utilisant des [arbres AVL](https://fr.wikipedia.org/wiki/Arbre_AVL) :
-  - Awk : pour D2 et L
-  - Algorithme C de base : D1, T et S
-- `-Q2` : utilise les algorithmes expérimentaux en C, pouvant utiliser des [tables de hachage](https://fr.wikipedia.org/wiki/Table_de_hachage) :
-  - Algorithme C de base : S (légèrement amélioré)
-  - Algorithme C expérimental : D1, D2, L et T
-- `-Q3` : active les [instructions AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions)
+- `-Q1` : utilise les algorithmes expérimentaux en C, pouvant utiliser des [tables de hachage](https://fr.wikipedia.org/wiki/Table_de_hachage) :
+  - Algorithme C expérimental : tous les traitements ! (D1, D2, L, T et S)
+- `-Q2` : active les [instructions AVX2](https://fr.wikipedia.org/wiki/Advanced_Vector_Extensions)
 pour une lecture de fichier plus rapide ; requiert un processeur compatible AVX2
 
 En dehors du README, l'aide reste disponible en lançant le script avec l'argument `-h` ou `--help`.

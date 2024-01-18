@@ -67,12 +67,10 @@ Options :
   -Q, --quick [n]            Utiliser des implémentations natives de calcul (au lieu de awk) plus rapides
                              pour tous les traitements, de plus en plus avancées selon le niveau choisi :
                                  0 : Utiliser awk si possible
-                                 1 : Utiliser les implémentations basiques en C (AVL uniquement)
-                                 2 : Utiliser les implémentations avancées en C (table de hachage, expérimental !)
-                                 3 : Utiliser les implémentations très avancées en C (SSE/AVX, ultra expérimental !)
+                                 1 : Utiliser les implémentations expérimentales en C (tables de hachage)
+                                 2 : Utiliser les implémentations très expérimentales en C (SSE/AVX)
                              Un changement de niveau peut nécessiter une recompilation du programme.
-  -X, --experimental         Équivalent à --quick 2.
-  -E, --exceed-speed-limits, Équivalent à --quick 3.
+  -E, --exceed-speed-limits, Équivalent à --quick 2.
       --excès-de-vitesse     ${ORANGE}${UL_ON}Attention${UL_OFF} : Cette option ajoute des propulseurs surpuissants à votre camion
                                          et vous expose à une amende pour excès de vitesse sur le
                                          périphérique nord de Rennes !!
@@ -139,11 +137,11 @@ is_number() {
 for (( i=2; i<=$#; i++ )); do
   arg=${!i}
   case "$arg" in
-  -d1|-d2|-l|-t|-s)
+    -d1|-d2|-l|-t|-s)
       add_computation "${arg:1}" ;;
-  --all|-A)
+    --all|-A)
       COMPUTATIONS=(d1 d2 l t s) ;;
-  --quick|-Q*)
+    --quick|-Q*)
       # Parse the quickness level.
       NEXT=$(( i+1 )); SKIP_NEXT=0; SHORT_ARG=0
       if [[ "$arg" = "-Q"* ]]; then
@@ -156,6 +154,7 @@ for (( i=2; i<=$#; i++ )); do
           print_arg_error "Le nombre situé après « -Q » (« $QL_STR ») est invalide."
           exit 1
         fi
+        # Try parsing the number after the argument (example: -Q 2)
         QL_STR="${!NEXT}"
         SKIP_NEXT=1
       fi
@@ -167,18 +166,16 @@ for (( i=2; i<=$#; i++ )); do
       else
         QUICK_LEVEL=1
       fi ;;
-  --experimental|-X)
-      QUICK_LEVEL=2 ;;
-  --exceed-speed-limits|--excès-de-vitesse|-E) # Little easter egg (not anymore... well now yes there is!)
-      QUICK_LEVEL=3 
+    --exceed-speed-limits|--excès-de-vitesse|-E) # Little easter egg (not anymore... well now yes there is!)
+      QUICK_LEVEL=2
       if [ "$arg" != "-E" ]; then
         LIVING_DANGEROUSLY=1
       fi
       ;;
-  -*)
+    -*)
       print_arg_error "Option « $arg » inconnue."
       exit 1 ;;
-  *)
+    *)
       print_arg_error "Un seul fichier peut être donné à la fois."
       exit 1 ;;
   esac
@@ -195,7 +192,6 @@ fi
 # the user puts a zero in front of the number (I actually did by the way).
 QL1=$(( 10#$QUICK_LEVEL >= 1 ))
 QL2=$(( 10#$QUICK_LEVEL >= 2 ))
-QL3=$(( 10#$QUICK_LEVEL >= 3 ))
 
 # ----------------------------------------------
 # Phase 2: Make compilation and folder setup
@@ -239,10 +235,10 @@ export OPTIMIZE=${OPTIMIZE:-1}
 export OPTIMIZE_NATIVE=${OPTIMIZE_NATIVE:-1}
 # Allow the user to configure the CLEAN variable, defaulting to 0.
 export CLEAN=${CLEAN:-0}
-# Enable experimental algorithms for QUICK_LEVEL >= 2.
-export EXPERIMENTAL_ALGO=${EXPERIMENTAL_ALGO:-$QL2}
-# Enable experimental AVX stuff for QUICK_LEVEL >= 3.
-export EXPERIMENTAL_ALGO_AVX=${EXPERIMENTAL_ALGO_AVX:-$QL3}
+# Enable experimental algorithms for QUICK_LEVEL >= 1.
+export EXPERIMENTAL_ALGO=${EXPERIMENTAL_ALGO:-$QL1}
+# Enable experimental AVX stuff for QUICK_LEVEL >= 2.
+export EXPERIMENTAL_ALGO_AVX=${EXPERIMENTAL_ALGO_AVX:-$QL2}
 
 # Compile the PermisC executable if one of these conditions is true:
 # - There's no executable
@@ -342,7 +338,7 @@ comp_d1() {
 }
 
 comp_d2() {
-  if [ $QL2 -eq 1 ]; then
+  if [ $QL1 -eq 1 ]; then
     "$PERMISC_EXEC" -d2 "$CSV_FILE"
   else
     $AWK -F ';' -f "$AWK_COMP_DIR/d2.awk" "$CSV_FILE" | sort -t ';' -k2 -nr | head -n 10
@@ -351,7 +347,7 @@ comp_d2() {
 }
 
 comp_l() {
-  if [ $QL2 -eq 1 ]; then
+  if [ $QL1 -eq 1 ]; then
     "$PERMISC_EXEC" -l "$CSV_FILE"
   else
     $AWK -F ';' -f "$AWK_COMP_DIR/l.awk" "$CSV_FILE" | sort -t ';' -k2nr | head -n 10 | sort -t ';' -k1,1n
