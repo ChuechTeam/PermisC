@@ -102,6 +102,13 @@ static bool continueBufferRead(RouteStream* stream)
             while (stream->readBuf[READ_BUFFER_SIZE - 1 - offset] != '\n')
             {
                 offset++;
+
+                // Make sure we don't go out of bounds if we ever have a buffer that
+                // doesn't have the '\n' character AT ALL.
+                // RBS - 1 - offset >= 0
+                // <==> -offset >= 1 - RBS
+                // <==> offset <= RBS - 1
+                assert(offset <= READ_BUFFER_SIZE-1);
             }
 
             fseek(stream->file, -offset, SEEK_CUR);
