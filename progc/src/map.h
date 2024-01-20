@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdalign.h>
 
 #define MAP_HEADER(type) type* entries; \
     uint32_t capacity; /* Must be a power of two */ \
@@ -34,11 +35,18 @@ typedef struct
     MAP_HEADER(void)
 } Map;
 
+typedef uint8_t MapKeyScratch[32];
+
+struct AlignedScratch
+{
+    alignas(8) MapKeyScratch data;
+};
+
 typedef uint32_t (*HashFunc)(const void* key, uint32_t capacityExponent);
 typedef bool (*KeyEqualFunc)(const void* entryA, void* key);
 typedef bool (*GetOccupiedFunc)(const void* entry);
 typedef void (*MarkOccupiedFunc)(void* entry, void* key);
-typedef void* (*GetKeyPtrFunc)(const void* entry, uint64_t* scratch);
+typedef void* (*GetKeyPtrFunc)(const void* entry, MapKeyScratch scratch);
 
 typedef struct
 {
@@ -170,8 +178,9 @@ static void mapGrow(Map* map, const MapMeta meta)
         void* entry = ((uint8_t*) prevSlots + meta.entrySize * i);
         if (meta.getOccupiedFunc(entry))
         {
-            uint64_t scratch;
-            void* newEntry = mapFindEntry(map, meta.getKeyPtrFunc(entry, &scratch), meta);
+            struct AlignedScratch scratch;
+            void* k = meta.getKeyPtrFunc(entry, scratch.data);
+            void* newEntry = mapFindEntry(map, k, meta);
 
             // Just copy the entry to its new slot.
             memcpy(newEntry, entry, meta.entrySize);
@@ -213,6 +222,11 @@ static void mapGrow(Map* map, const MapMeta meta)
         (GetKeyPtrFunc) MAP_GET_KEY_PTR_FUNC_NAME() \
     })
 
+#define M_PASS_0(k) (void*) k
+#define M_PASS_1(k) (void*) &k
+
+#define M_PASS_X(b, k) M_PASS_ ## b (k)
+
 #define MAP_DECLARE_FUNCTIONS_STATIC(funcPrefix, entryType, keyType, byVal) \
     static void funcPrefix ## Init (CURRENT_MAP_TYPE()* map, uint32_t initialCapacity, float loadFactor) \
     { \
@@ -221,13 +235,13 @@ static void mapGrow(Map* map, const MapMeta meta)
     \
     static entryType* funcPrefix ## Lookup (CURRENT_MAP_TYPE()* map, keyType key) \
     { \
-        return (entryType*) mapLookup((Map*) map, (byVal ? (void*) &key : (void*) (uintptr_t) key), \
+        return (entryType*) mapLookup((Map*) map, M_PASS_X(byVal, key), \
                                       MAP_META(entryType)); \
     } \
     \
     static entryType* funcPrefix ## Insert (CURRENT_MAP_TYPE()* map, keyType key) \
     { \
-        return (entryType*) mapInsert((Map*) map, (byVal ? (void*) &key : (void*) (uintptr_t) key), \
+        return (entryType*) mapInsert((Map*) map, M_PASS_X(byVal, key), \
                                       MAP_META(entryType)); \
     } \
     static void funcPrefix ## Free (CURRENT_MAP_TYPE()* map) \

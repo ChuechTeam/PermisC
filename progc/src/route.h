@@ -18,9 +18,12 @@ typedef struct RouteStep
     uint32_t routeId;
     uint32_t stepId;
     char* townA; // Invalidated on the next call to rsRead
+    uint32_t townALen;
     char* townB; // Invalidated on the next call to rsRead
+    uint32_t townBLen;
     float distance;
     char* driverName; // Invalidated on the next call to rsRead
+    uint32_t driverNameLen;
 } RouteStep;
 
 typedef struct RouteStream

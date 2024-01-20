@@ -78,7 +78,7 @@ int main(int argv, char** argc)
         StringAVL* driversAVL = NULL;
         StringAVL* townsAVL = NULL;
 
-        RouteStep step = {0, 0, NULL, NULL, 0.0f, NULL};
+        RouteStep step = {0, 0, NULL, 0, NULL, 0, 0.0f, NULL, 0};
         PROFILER_START("Read all steps + AVL insertion");
         while (rsRead(&stream, &step, ALL_FIELDS))
         {

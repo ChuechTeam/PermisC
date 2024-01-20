@@ -24,6 +24,7 @@
 MemArena townAVLMem; // Used to allocate TownAVL nodes.
 MemArena townSortAVLMem; // Used to allocate TownSortAVL nodes.
 MemArena townNodeListMem; // Used to allocate the TownNodeList structures (only the ones we need to allocate).
+MemArena townStringsMem;
 
 // Can be changed to uint16_t for 2x more towns stored, but limits the total amount of towns to 65536.
 typedef uint32_t TownNodeId;
@@ -131,7 +132,7 @@ static inline void MAP_MARK_OCCUPIED_FUNC(RouteEntry* entry, int* key)
     entry->id = *key;
 }
 
-static inline uint32_t* MAP_GET_KEY_PTR_FUNC(RouteEntry* entry, uint64_t* scratch)
+static inline uint32_t* MAP_GET_KEY_PTR_FUNC(RouteEntry* entry, MapKeyScratch scratch)
 {
     return &entry->id;
 }
@@ -140,86 +141,139 @@ MAP_DECLARE_FUNCTIONS_STATIC(routeMap, RouteEntry, int, true)
 
 #undef CURRENT_MAP_TYPE
 
-typedef struct TownAVL
+typedef struct
 {
-    AVL_HEADER(TownAVL)
+    char* str;
+    uint32_t length;
+} MeasuredString;
 
+typedef struct TownMapEntry
+{
     TownNodeId id;
-    uint32_t passed; // Number of times this town has been passed.
+    bool occupied;
+    uint16_t length;
+    char* name;
+    uint32_t passed;
     uint32_t firstTown;
-    char name[]; // Flexible array members, contains the name of the town.
-} TownAVL;
+} TownMapEntry;
+
+typedef struct
+{
+    MAP_HEADER(TownMapEntry)
+} TownMap;
+
+#define CURRENT_MAP_TYPE() TownMap
+
+static inline uint32_t MAP_HASH_FUNC(MeasuredString* key, uint32_t capacityExponent)
+{
+    char* str = key->str;
+
+    uint32_t hash = 0;
+    while (*str != '\0')
+    {
+        hash *= 31;
+        hash += *str;
+        str++;
+    }
+    return hash;
+}
+
+static inline bool MAP_KEY_EQUAL_FUNC(const TownMapEntry* entry, MeasuredString* key)
+{
+    if (key->length == entry->length)
+    {
+        return memcmp(key->str, entry->name, key->length) == 0;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+static inline bool MAP_GET_OCCUPIED_FUNC(const TownMapEntry* entry)
+{
+    return entry->occupied;
+}
+
+static inline void MAP_MARK_OCCUPIED_FUNC(TownMapEntry* entry, MeasuredString* key)
+{
+    size_t length = key->length;
+    size_t size = length + 1;
+
+    assert(size <= UINT16_MAX);
+
+    entry->name = memAlloc(&townStringsMem, size);
+    memcpy(entry->name, key->str, size);
+
+    entry->length = (uint16_t) length;
+    entry->occupied = true;
+}
+
+static inline MeasuredString* MAP_GET_KEY_PTR_FUNC(TownMapEntry* entry, MapKeyScratch scratch)
+{
+    MeasuredString* str = (MeasuredString*) scratch;
+    str->str = entry->name;
+    str->length = entry->length;
+    return str;
+}
+
+MAP_DECLARE_FUNCTIONS_STATIC(townMap, TownMapEntry, MeasuredString, true)
+
+#undef CURRENT_MAP_TYPE
 
 typedef struct TownSortAVL
 {
     AVL_HEADER(TownSortAVL)
 
-    TownAVL* townNode;
+    uint32_t passed;
+    char* name;
+    TownMapEntry* entry;
 } TownSortAVL;
 
-static TownAVL* townAVLCreate(const char* townName)
-{
-    size_t len = strlen(townName);
-    TownAVL* tree = memAlloc(&townAVLMem, sizeof(TownAVL) + len + 1);
-
-    AVL_INIT(tree);
-    tree->passed = 0;
-    tree->firstTown = 0;
-    memcpy(tree->name, townName, len + 1);
-
-    return tree;
-}
-
-static int townAVLCompare(const TownAVL* tree, const char* townName)
-{
-    return strcmp(tree->name, townName);
-}
-
-AVL_DECLARE_FUNCTIONS_STATIC(townAVL, TownAVL, const char,
-                             (AVLCreateFunc) &townAVLCreate, (AVLCompareValueFunc) &townAVLCompare)
-
-TownSortAVL* townSortAVLCreate(TownAVL* townNode)
+TownSortAVL* townSortAVLCreate(TownMapEntry* entry)
 {
     TownSortAVL* tree = memAlloc(&townSortAVLMem, sizeof(TownSortAVL));
     // assert(tree);
 
     AVL_INIT(tree);
-    tree->townNode = townNode;
+    tree->entry = entry;
+    tree->name = entry->name;
+    tree->passed = entry->passed;
 
     return tree;
 }
 
-int townSortAVLComparePassed(TownSortAVL* tree, TownAVL* townNode)
+int townSortAVLComparePassed(TownSortAVL* tree, TownMapEntry* entry)
 {
-    int cmp = tree->townNode->passed - townNode->passed;
+    int cmp = tree->passed - entry->passed;
     if (cmp != 0)
     {
         return cmp;
     }
     else
     {
-        return strcmp(tree->townNode->name, townNode->name);
+        return strcmp(tree->name, entry->name);
     }
 }
 
-int townSortAVLCompareName(TownSortAVL* tree, TownAVL* townNode)
+int townSortAVLCompareName(TownSortAVL* tree, TownMapEntry* townNode)
 {
-    return strcmp(tree->townNode->name, townNode->name);
+    return strcmp(tree->name, townNode->name);
 }
 
-AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertPassed, TownSortAVL, TownAVL,
+AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertPassed, TownSortAVL, TownMapEntry,
                             (AVLCreateFunc) &townSortAVLCreate, (AVLCompareValueFunc) &townSortAVLComparePassed)
 
-AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertName, TownSortAVL, TownAVL,
+AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertName, TownSortAVL, TownMapEntry,
                             (AVLCreateFunc) &townSortAVLCreate, (AVLCompareValueFunc) &townSortAVLCompareName)
 
-static inline void insertTown(const RouteStep* step, RouteEntry* routeNode, TownAVL** towns, const char* townName,
+static inline void insertTown(const RouteStep* step, RouteEntry* routeNode, TownMap* towns, MeasuredString townName,
                               bool isTownA, TownNodeId* idCounter)
 {
-    TownAVL* townNode = townAVLLookup(*towns, townName);
+    TownMapEntry* townNode = townMapLookup(towns, townName);
     if (townNode == NULL)
     {
-        *towns = townAVLInsert(*towns, townName, &townNode, NULL);
+        townNode = townMapInsert(towns, townName);
         townNode->id = (*idCounter)++;
     }
 
@@ -235,16 +289,16 @@ static inline void insertTown(const RouteStep* step, RouteEntry* routeNode, Town
     }
 }
 
-void sortTowns(TownAVL* townNode, TownSortAVL** sorted)
+void sortTowns(TownMap* towns, TownSortAVL** sorted)
 {
-    if (townNode == NULL)
+    for (uint32_t i = 0; i < towns->capacity; ++i)
     {
-        return;
+        TownMapEntry* entry = &towns->entries[i];
+        if (entry->occupied)
+        {
+            *sorted = townSortAVLInsertPassed(*sorted, entry, NULL, NULL);
+        }
     }
-
-    *sorted = townSortAVLInsertPassed(*sorted, townNode, NULL, NULL);
-    sortTowns(townNode->left, sorted);
-    sortTowns(townNode->right, sorted);
 }
 
 void extractTop10(TownSortAVL* sorted, TownSortAVL** top, int* n)
@@ -258,7 +312,7 @@ void extractTop10(TownSortAVL* sorted, TownSortAVL** top, int* n)
 
     if (*n != 10)
     {
-        *top = townSortAVLInsertName(*top, sorted->townNode, NULL, NULL);
+        *top = townSortAVLInsertName(*top, sorted->entry, NULL, NULL);
         *n += 1;
     }
 
@@ -273,7 +327,7 @@ void printTop10(TownSortAVL* top)
     }
 
     printTop10(top->left);
-    printf("%s;%d;%d\n", top->townNode->name, top->townNode->passed, top->townNode->firstTown);
+    printf("%s;%d;%d\n", top->name, top->passed, top->entry->firstTown);
     printTop10(top->right);
 }
 
@@ -284,12 +338,14 @@ void computationT(RouteStream* stream)
     memInit(&townAVLMem, 1 * 1024 * 1024);
     memInit(&townSortAVLMem, 256 * 1024);
     memInit(&townNodeListMem, 1 * 1024 * 1024);
+    memInitEx(&townStringsMem, 512 * 1024, 1);
 
     RouteMap routes;
-    TownAVL* towns = NULL;
+    TownMap towns;
     TownNodeId idCounter = 0;
 
-    routeMapInit(&routes, 1 << 16, 0.7f);
+    routeMapInit(&routes, 1 << 16, 0.75f);
+    townMapInit(&towns, 8192, 0.75f);
 
     RouteStep step;
     while (rsRead(stream, &step, ROUTE_ID | STEP_ID | TOWN_A | TOWN_B))
@@ -301,20 +357,24 @@ void computationT(RouteStream* stream)
             tnListInit(&entry->towns);
         }
 
-        insertTown(&step, entry, &towns, step.townA, true, &idCounter);
-        insertTown(&step, entry, &towns, step.townB, false, &idCounter);
+        MeasuredString townA = { step.townA, step.townALen };
+        MeasuredString townB = { step.townB, step.townBLen };
+        insertTown(&step, entry, &towns, townA, true, &idCounter);
+        insertTown(&step, entry, &towns, townB, false, &idCounter);
     }
 
     TownSortAVL *sorted = NULL, *top = NULL;
     int n = 0;
 
-    sortTowns(towns, &sorted);
+    sortTowns(&towns, &sorted);
     extractTop10(sorted, &top, &n);
     printTop10(top);
 
+    townMapFree(&towns);
     memFree(&townAVLMem);
     memFree(&townSortAVLMem);
     memFree(&townNodeListMem);
+    memFree(&townStringsMem);
 
     PROFILER_END();
 }

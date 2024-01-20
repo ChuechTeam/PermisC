@@ -4,7 +4,7 @@
 /*
  * mem_alloc.h
  * ---------------
- * A basic memory arena allocator, with elements being 8-bytes aligned.
+ * A basic memory arena allocator, with elements having custom alignment.
  * Allows allocation of elements in multiple contiguous memory regions, which can be
  * freed in a single function call.
  *
@@ -35,6 +35,7 @@ typedef struct MemArena
 
     size_t blockSize;
     size_t blockPos; // 8-byte aligned
+    size_t alignmentMask;
 } MemArena;
 
 // Allocates a block of memory.
@@ -50,14 +51,21 @@ static MemBlock* memBlockAlloc(MemBlock* prev, const size_t blockSize)
 
 // Initialize the memory arena allocator, with the given block size.
 // Smaller block sizes will lead to less memory waste, but will trigger frequent allocations.
-static void memInit(MemArena* arena, const size_t blockSize)
+static void memInitEx(MemArena* arena, const size_t blockSize, const size_t alignment)
 {
     assert(arena);
     assert(blockSize >= 8);
+    assert(alignment > 0 && ((alignment & (alignment-1)) == 0));
 
     arena->block = memBlockAlloc(NULL, blockSize);
     arena->blockSize = blockSize;
     arena->blockPos = 0;
+    arena->alignmentMask = alignment-1;
+}
+
+static void memInit(MemArena* arena, const size_t blockSize)
+{
+    memInitEx(arena, blockSize, 8);
 }
 
 // Allocate a block of memory in the arena allocator.
@@ -70,8 +78,8 @@ static void* memAlloc(MemArena* arena, size_t size)
 
     void* fitPtr = arena->block->data + arena->blockPos;
 
-    // Align to 8 bytes
-    size = size + size % 8;
+    // Apply alignment
+    size = size + (size & arena->alignmentMask);
     size_t newPos = arena->blockPos + size;
 
     if (newPos < arena->blockSize)

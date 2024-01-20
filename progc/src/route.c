@@ -211,9 +211,10 @@ static float readUnsignedFloat(char* const start, char* const end)
     return (float) intPart + (float) decPart / decSize;
 }
 
-static char* readStr(char* start, char* end)
+static char* readStr(char* start, char* end, uint32_t* outLen)
 {
     *end = '\0';
+    *outLen = (uint32_t)(end - start);
 
     return start;
 }
@@ -267,16 +268,16 @@ bool rsRead(RouteStream* stream, RouteStep* outRouteStep, RouteFields fieldsToRe
         outRouteStep->stepId = readUnsignedInt(delimiters[0] + 1, delimiters[1]);
 
     if (fieldsToRead & TOWN_A)
-        outRouteStep->townA = readStr(delimiters[1] + 1, delimiters[2]);
+        outRouteStep->townA = readStr(delimiters[1] + 1, delimiters[2], &outRouteStep->townALen);
 
     if (fieldsToRead & TOWN_B)
-        outRouteStep->townB = readStr(delimiters[2] + 1, delimiters[3]);
+        outRouteStep->townB = readStr(delimiters[2] + 1, delimiters[3], &outRouteStep->townBLen);
 
     if (fieldsToRead & DISTANCE)
         outRouteStep->distance = readUnsignedFloat(delimiters[3] + 1, delimiters[4]);
 
     if (fieldsToRead & DRIVER_NAME)
-        outRouteStep->driverName = readStr(delimiters[4] + 1, delimiters[5]);
+        outRouteStep->driverName = readStr(delimiters[4] + 1, delimiters[5], &outRouteStep->driverNameLen);
 
     stream->readBufCursor = delimiters[5] + 1;
 

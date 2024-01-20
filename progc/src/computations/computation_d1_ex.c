@@ -109,7 +109,7 @@ static inline void MAP_MARK_OCCUPIED_FUNC(RouteMapEntry* entry, uint32_t* key)
     entry->key = *key;
 }
 
-static inline uint32_t* MAP_GET_KEY_PTR_FUNC(RouteMapEntry* entry, uint64_t* scratch)
+static inline uint32_t* MAP_GET_KEY_PTR_FUNC(RouteMapEntry* entry, MapKeyScratch scratch)
 {
     uint32_t* scratch32 = (uint32_t*) scratch;
 
