@@ -12,6 +12,7 @@
 #include "profile.h"
 #include "map.h"
 #include "mem_alloc.h"
+#include "partition.h"
 
 MemArena travelSortAVLMem;
 
@@ -37,7 +38,7 @@ typedef struct
 
 static inline uint32_t MAP_HASH_FUNC(const int* key, uint32_t capacityExponent)
 {
-    uint32_t a = * (uint32_t*) key;
+    uint32_t a = *(uint32_t*) key;
     a *= 2654435769U;
     return a >> (32 - capacityExponent);
 }
@@ -76,7 +77,10 @@ typedef struct TravelSortAVL
     AVL_HEADER(TravelSortAVL)
 
     float deltaMaxMin;
-    TravelEntry* t; // Points to a travel in TravelAVL.
+    uint32_t id;
+    float min;
+    float max;
+    float avg; // Copies the travel entry from the map.
 } TravelSortAVL;
 
 TravelSortAVL* travelSortAVLCreate(TravelEntry* travel)
@@ -84,7 +88,10 @@ TravelSortAVL* travelSortAVLCreate(TravelEntry* travel)
     TravelSortAVL* tree = memAlloc(&travelSortAVLMem, sizeof(TravelSortAVL));
 
     AVL_INIT(tree);
-    tree->t = travel;
+    tree->id = travel->id;
+    tree->min = travel->min;
+    tree->max = travel->max;
+    tree->avg = travel->sumOrAvg;
     tree->deltaMaxMin = travel->max - travel->min;
 
     return tree;
@@ -103,27 +110,56 @@ int travelSortAVLCompare(TravelSortAVL* tree, TravelEntry* travel)
     }
     else
     {
-        return tree->t->id - travel->id;
+        return tree->id - travel->id;
     }
 }
 
 AVL_DECLARE_INSERT_FUNCTION(travelSortAVLInsert, TravelSortAVL, TravelEntry,
                             (AVLCreateFunc) &travelSortAVLCreate, (AVLCompareValueFunc) &travelSortAVLCompare)
 
+// Find the element with the 50th highest max-min value.
+// This will be used as a threshold to avoid inserting useless elements in the AVL tree
+static float findThresholdSortAVL(TravelSortAVL* tree, float top[50], int* i)
+{
+    if (tree == NULL || *i >= 50)
+    {
+        return 0.0f;
+    }
+
+    findThresholdSortAVL(tree->right, top, i);
+    top[(*i)++] = tree->deltaMaxMin;
+    findThresholdSortAVL(tree->left, top, i);
+
+    return top[49];
+}
+
 // Once we have accumulated all the distances, calculate all the average distances of the travels.
 void calcAvgAndSort(TravelMap* map, TravelSortAVL** sorted)
 {
+    uint32_t num = 0;
+    float threshold = -1e18f;
+
     for (uint32_t i = 0; i < map->capacity; ++i)
     {
         TravelEntry* entry = &map->entries[i];
-        if (entry->occupied)
+
+        // If an entry isn't occupied, max = min = 0
+        // so we have high chances that this condition fails first.
+        if ((entry->max - entry->min) >= threshold && entry->occupied)
         {
             // At this moment, avgOrSum contains the sum of all distances.
             // Transform it into an average.
             entry->sumOrAvg = entry->sumOrAvg / entry->nSteps;
-        }
+            *sorted = travelSortAVLInsert(*sorted, entry, NULL, NULL);
 
-        *sorted = travelSortAVLInsert(*sorted, entry, NULL, NULL);
+            num++;
+            if (num >= 50)
+            {
+                float top[50];
+                int ti = 0;
+                threshold = findThresholdSortAVL(*sorted, top, &ti);
+            }
+        }
     }
 }
 
@@ -140,11 +176,17 @@ void printTop50(TravelSortAVL* tr, int* n)
     {
         *n += 1;
         printf("%d;%d;%f;%f;%f;%f\n", *n,
-               tr->t->id, tr->t->min, tr->t->sumOrAvg, tr->t->max, tr->t->max - tr->t->min);
+               tr->id, tr->min, tr->avg, tr->max, tr->max - tr->min);
     }
 
     printTop50(tr->left, n);
 }
+
+typedef struct RoutePart
+{
+    uint32_t id;
+    float dist;
+} RoutePart;
 
 void computationS(RouteStream* stream)
 {
@@ -153,31 +195,40 @@ void computationS(RouteStream* stream)
     memInit(&travelSortAVLMem, 1 * 1024 * 1024);
 
     TravelMap travels;
-    travelMapInit(&travels, 1 << 16, 0.7f);
+    travelMapInit(&travels, 1024, 0.7f);
+
+    Partitioner partitioner;
+    partitionerInit(&partitioner, 64, sizeof(RoutePart) * 10000);
 
     RouteStep step;
     while (rsRead(stream, &step, ROUTE_ID | DISTANCE))
     {
-        TravelEntry* travel = travelMapLookup(&travels, step.routeId);
+        RoutePart item = {step.routeId, step.distance};
+        partinitionerAddS(&partitioner, step.routeId, item);
+    }
+
+    PARTITIONER_ITERATE(&partitioner, RoutePart, stepPart)
+    {
+        TravelEntry* travel = travelMapLookup(&travels, stepPart->id);
         if (travel == NULL)
         {
-            travel = travelMapInsert(&travels, step.routeId);
-            travel->max = step.distance;
-            travel->min = step.distance;
-            travel->sumOrAvg = step.distance; // Sum of all the distances.
+            travel = travelMapInsert(&travels, stepPart->id);
+            travel->max = stepPart->dist;
+            travel->min = stepPart->dist;
+            travel->sumOrAvg = stepPart->dist; // Sum of all the distances
             travel->nSteps = 1;
         }
         else
         {
-            if (travel->max < step.distance)
+            if (travel->max < stepPart->dist)
             {
-                travel->max = step.distance;
+                travel->max = stepPart->dist;
             }
-            if (travel->min > step.distance)
+            if (travel->min > stepPart->dist)
             {
-                travel->min = step.distance;
+                travel->min = stepPart->dist;
             }
-            travel->sumOrAvg += step.distance; // Add to the sum of all distances.
+            travel->sumOrAvg += stepPart->dist; // Add to the sum of all distances.
             travel->nSteps += 1;
         }
     }
@@ -185,10 +236,11 @@ void computationS(RouteStream* stream)
     TravelSortAVL* sorted = NULL;
     int n = 0;
 
-    // Transform the sum into an average.
     calcAvgAndSort(&travels, &sorted);
     printTop50(sorted, &n);
 
+    travelMapFree(&travels);
+    partitionerFree(&partitioner);
     memFree(&travelSortAVLMem);
 
     PROFILER_END();

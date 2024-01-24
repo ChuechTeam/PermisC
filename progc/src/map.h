@@ -190,6 +190,45 @@ static void mapGrow(Map* map, const MapMeta meta)
     free(prevSlots);
 }
 
+static void mapClear(Map* map, const int32_t newCapacity, const MapMeta meta)
+{
+    assert(map);
+
+    map->size = 0;
+
+    if (newCapacity == -1)
+    {
+        // Don't change the capacity
+        memset(map->entries, 0, map->capacity * meta.entrySize);
+    }
+    else
+    {
+        assert((newCapacity & (newCapacity - 1)) == 0 && "Must be a power of 2!");
+
+        if (newCapacity > map->capacity)
+        {
+            free(map->entries);
+            map->entries = calloc(newCapacity, meta.entrySize);
+        }
+        else
+        {
+            memset(map->entries, 0, map->capacity * meta.entrySize);
+        }
+        // Else, don't try to free to allocate a smaller buffer.
+        // Now that's maybe confusing because it won't free memory... But useless mallocs are best avoided.
+
+        map->capacity = newCapacity;
+
+        map->capacityExponent = 0;
+        uint32_t expCalc = newCapacity >> 1;
+        while (expCalc != 0)
+        {
+            map->capacityExponent++;
+            expCalc >>= 1;
+        }
+    }
+}
+
 /*
  * Macro chaos!
  */
@@ -247,6 +286,10 @@ static void mapGrow(Map* map, const MapMeta meta)
     static void funcPrefix ## Free (CURRENT_MAP_TYPE()* map) \
     { \
         free(map->entries); \
+    }\
+    static void funcPrefix ## Clear (CURRENT_MAP_TYPE()* map, int32_t newCapacity) \
+    { \
+        mapClear((Map*) map, newCapacity, MAP_META(entryType)); \
     }
 #else
 #warning "map.h is only available in EXPERIMENTAL_ALGO mode!"

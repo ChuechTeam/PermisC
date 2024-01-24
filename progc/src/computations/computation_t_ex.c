@@ -1,3 +1,5 @@
+#include <partition.h>
+
 #include "compile_settings.h"
 
 #if EXPERIMENTAL_ALGO
@@ -21,7 +23,6 @@
 
 // The memory arenas used for each kind of structure.
 // Currently those are global variables, should these be passed to the create functions instead?
-MemArena townAVLMem; // Used to allocate TownAVL nodes.
 MemArena townSortAVLMem; // Used to allocate TownSortAVL nodes.
 MemArena townNodeListMem; // Used to allocate the TownNodeList structures (only the ones we need to allocate).
 MemArena townStringsMem;
@@ -29,7 +30,7 @@ MemArena townStringsMem;
 // Can be changed to uint16_t for 2x more towns stored, but limits the total amount of towns to 65536.
 typedef uint32_t TownNodeId;
 
-#define TN_LIST_SIZE 132
+#define TN_LIST_SIZE 104 // Make it so RouteEntry is 128 bytes.
 #define TN_LIST_NUM TN_LIST_SIZE/sizeof(TownNodeId)
 
 typedef struct TownNodeList
@@ -141,6 +142,10 @@ MAP_DECLARE_FUNCTIONS_STATIC(routeMap, RouteEntry, int, true)
 
 #undef CURRENT_MAP_TYPE
 
+/*
+ * Town Map: Links each town id to its town name.
+ */
+
 typedef struct
 {
     char* str;
@@ -153,8 +158,6 @@ typedef struct TownMapEntry
     bool occupied;
     uint16_t length;
     char* name;
-    uint32_t passed;
-    uint32_t firstTown;
 } TownMapEntry;
 
 typedef struct
@@ -221,83 +224,129 @@ MAP_DECLARE_FUNCTIONS_STATIC(townMap, TownMapEntry, MeasuredString, true)
 
 #undef CURRENT_MAP_TYPE
 
+/*
+ * Town Stats, and its array
+ */
+
+typedef struct TownStats
+{
+    char* name;
+    uint32_t passed;
+    uint32_t firstTown;
+} TownStats;
+
+typedef struct TownStatsArray
+{
+    TownStats* elements;
+    uint32_t capacity;
+} TownStatsArray;
+
+void townStatsArrayInit(TownStatsArray* array)
+{
+    array->capacity = 8192;
+    array->elements = malloc(sizeof(TownStats) * array->capacity);
+}
+
+void townStatsArrayPut(TownStatsArray* array, TownNodeId index, const TownStats stats)
+{
+    if (index >= array->capacity)
+    {
+        array->capacity *= 2;
+        array->elements = realloc(array->elements, sizeof(TownStats) * array->capacity);
+    }
+    array->elements[index] = stats;
+}
+
+/*
+ * Town Sort AVL
+ */
+
 typedef struct TownSortAVL
 {
     AVL_HEADER(TownSortAVL)
 
-    uint32_t passed;
-    char* name;
-    TownMapEntry* entry;
+    TownStats stats;
 } TownSortAVL;
 
-TownSortAVL* townSortAVLCreate(TownMapEntry* entry)
+TownSortAVL* townSortAVLCreate(TownStats* stats)
 {
     TownSortAVL* tree = memAlloc(&townSortAVLMem, sizeof(TownSortAVL));
     // assert(tree);
 
     AVL_INIT(tree);
-    tree->entry = entry;
-    tree->name = entry->name;
-    tree->passed = entry->passed;
+    tree->stats = *stats;
 
     return tree;
 }
 
-int townSortAVLComparePassed(TownSortAVL* tree, TownMapEntry* entry)
+int townSortAVLComparePassed(TownSortAVL* tree, TownStats* entry)
 {
-    int cmp = tree->passed - entry->passed;
+    int cmp = tree->stats.passed - entry->passed;
     if (cmp != 0)
     {
         return cmp;
     }
     else
     {
-        return strcmp(tree->name, entry->name);
+        return strcmp(tree->stats.name, entry->name);
     }
 }
 
-int townSortAVLCompareName(TownSortAVL* tree, TownMapEntry* townNode)
+int townSortAVLCompareName(TownSortAVL* tree, TownStats* townNode)
 {
-    return strcmp(tree->name, townNode->name);
+    return strcmp(tree->stats.name, townNode->name);
 }
 
-AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertPassed, TownSortAVL, TownMapEntry,
+AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertPassed, TownSortAVL, TownStats,
                             (AVLCreateFunc) &townSortAVLCreate, (AVLCompareValueFunc) &townSortAVLComparePassed)
 
-AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertName, TownSortAVL, TownMapEntry,
+AVL_DECLARE_INSERT_FUNCTION(townSortAVLInsertName, TownSortAVL, TownStats,
                             (AVLCreateFunc) &townSortAVLCreate, (AVLCompareValueFunc) &townSortAVLCompareName)
 
-static inline void insertTown(const RouteStep* step, RouteEntry* routeNode, TownMap* towns, MeasuredString townName,
-                              bool isTownA, TownNodeId* idCounter)
+
+typedef struct StepPart
+{
+    uint32_t routeId;
+    TownNodeId townA;
+    TownNodeId townB;
+} StepPart;
+
+static inline TownNodeId registerTown(const RouteStep* step, TownMap* towns, TownStatsArray* statArray,
+                                      MeasuredString townName, TownNodeId* idCounter)
 {
     TownMapEntry* townNode = townMapLookup(towns, townName);
     if (townNode == NULL)
     {
         townNode = townMapInsert(towns, townName);
         townNode->id = (*idCounter)++;
+        townStatsArrayPut(statArray, townNode->id, (TownStats){townNode->name, 0, 0});
     }
 
-    if (isTownA && step->stepId == 1)
+    if (step->stepId == 1 && townName.str == step->townA)
     {
-        townNode->firstTown++;
+        statArray->elements[townNode->id].firstTown++;
     }
 
-    if (!tnListSearch(&routeNode->towns, townNode->id))
+    return townNode->id;
+}
+
+static inline void incrementTownPassed(RouteEntry* entry, TownStatsArray* statArray, TownNodeId townId)
+{
+    TownStats* stats = &statArray->elements[townId];
+
+    if (!tnListSearch(&entry->towns, townId))
     {
-        tnListAdd(&routeNode->towns, townNode->id);
-        townNode->passed++;
+        stats->passed++;
+        tnListAdd(&entry->towns, townId);
     }
 }
 
-void sortTowns(TownMap* towns, TownSortAVL** sorted)
+void sortTowns(TownStatsArray* stats, TownNodeId num, TownSortAVL** sorted)
 {
-    for (uint32_t i = 0; i < towns->capacity; ++i)
+    for (uint32_t i = 0; i < num; ++i)
     {
-        TownMapEntry* entry = &towns->entries[i];
-        if (entry->occupied)
-        {
-            *sorted = townSortAVLInsertPassed(*sorted, entry, NULL, NULL);
-        }
+        TownStats* stat = &stats->elements[i];
+        *sorted = townSortAVLInsertPassed(*sorted, stat, NULL, NULL);
     }
 }
 
@@ -312,7 +361,7 @@ void extractTop10(TownSortAVL* sorted, TownSortAVL** top, int* n)
 
     if (*n != 10)
     {
-        *top = townSortAVLInsertName(*top, sorted->entry, NULL, NULL);
+        *top = townSortAVLInsertName(*top, &sorted->stats, NULL, NULL);
         *n += 1;
     }
 
@@ -327,7 +376,7 @@ void printTop10(TownSortAVL* top)
     }
 
     printTop10(top->left);
-    printf("%s;%d;%d\n", top->name, top->passed, top->entry->firstTown);
+    printf("%s;%d;%d\n", top->stats.name, top->stats.passed, top->stats.firstTown);
     printTop10(top->right);
 }
 
@@ -335,43 +384,93 @@ void computationT(RouteStream* stream)
 {
     PROFILER_START("Computation T (Experimental!)");
 
-    memInit(&townAVLMem, 1 * 1024 * 1024);
     memInit(&townSortAVLMem, 256 * 1024);
     memInit(&townNodeListMem, 1 * 1024 * 1024);
     memInitEx(&townStringsMem, 512 * 1024, 1);
 
+    // Stores all the towns travelled in each route.
     RouteMap routes;
+    // Stores the identifiers of the towns, and their name as strings.
     TownMap towns;
+    // Stores the passed/first-passed stats of each town.
+    // It's an array, but it's clearly accessed like a map, because the ids are sequential.
+    TownStatsArray stats;
+    // Writes all the steps into partitions, grouping them into
+    // batches of steps with the same route id.
+    // This improves performance a LOT by reducing cache misses, as the algorithm will
+    // access the same routes more frequently, instead of systematically
+    // accessing a random area in the RAM.
+    Partitioner partitioner;
+    // Just tracks the current town id, and increments it for the next town we encounter.
     TownNodeId idCounter = 0;
 
-    routeMapInit(&routes, 1 << 16, 0.75f);
-    townMapInit(&towns, 8192, 0.75f);
+    routeMapInit(&routes, 8192, 0.75f);
+    // A lower load factor is better for this map as strings are really just stored
+    // in another memory region, and the key bottleneck is comparing strings; we must
+    // then reduce the number of collisions as much as possible.
+    townMapInit(&towns, 8192, 0.5f);
+    // More partitions is efficent for this computation as the route map is very large.
+    partitionerInit(&partitioner, 128, 65536);
+    townStatsArrayInit(&stats);
 
-    RouteStep step;
-    while (rsRead(stream, &step, ROUTE_ID | STEP_ID | TOWN_A | TOWN_B))
     {
-        RouteEntry* entry = routeMapLookup(&routes, step.routeId);
-        if (entry == NULL)
+        PROFILER_START("Write to partitions + town registering");
+
+        RouteStep step;
+        while (rsRead(stream, &step, ROUTE_ID | STEP_ID | TOWN_A | TOWN_B))
         {
-            entry = routeMapInsert(&routes, step.routeId);
-            tnListInit(&entry->towns);
+            StepPart part = {step.routeId};
+            part.townA = registerTown(&step, &towns, &stats, (MeasuredString){step.townA, step.townALen}, &idCounter);
+            part.townB = registerTown(&step, &towns, &stats, (MeasuredString){step.townB, step.townBLen}, &idCounter);
+            partinitionerAddS(&partitioner, step.routeId, part);
         }
 
-        MeasuredString townA = { step.townA, step.townALen };
-        MeasuredString townB = { step.townB, step.townBLen };
-        insertTown(&step, entry, &towns, townA, true, &idCounter);
-        insertTown(&step, entry, &towns, townB, false, &idCounter);
+        PROFILER_END();
+    }
+
+    {
+        PROFILER_START("Read partitioned entries");
+
+        for (uint32_t i = 0; i < partitioner.numPartitions; ++i)
+        {
+            Partition* partition = &partitioner.partitions[i];
+
+            PARTITION_ITERATE(&partitioner, partition, StepPart, stepPart)
+            {
+                RouteEntry* entry = routeMapLookup(&routes, stepPart->routeId);
+                if (entry == NULL)
+                {
+                    entry = routeMapInsert(&routes, stepPart->routeId);
+                    tnListInit(&entry->towns);
+                }
+
+                incrementTownPassed(entry, &stats, stepPart->townA);
+                incrementTownPassed(entry, &stats, stepPart->townB);
+            }
+
+            routeMapClear(&routes, -1);
+        }
+
+        PROFILER_END();
     }
 
     TownSortAVL *sorted = NULL, *top = NULL;
     int n = 0;
 
-    sortTowns(&towns, &sorted);
-    extractTop10(sorted, &top, &n);
+    {
+        PROFILER_START("Sort towns");
+
+        sortTowns(&stats, idCounter, &sorted);
+        extractTop10(sorted, &top, &n);
+
+        PROFILER_END();
+    }
     printTop10(top);
 
+    routeMapFree(&routes);
     townMapFree(&towns);
-    memFree(&townAVLMem);
+    partitionerFree(&partitioner);
+    free(stats.elements);
     memFree(&townSortAVLMem);
     memFree(&townNodeListMem);
     memFree(&townStringsMem);

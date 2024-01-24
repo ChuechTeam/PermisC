@@ -8,6 +8,7 @@
 #include "map.h"
 #include "profile.h"
 #include "mem_alloc.h"
+#include "partition.h"
 
 MemArena routeSortAVLMem;
 
@@ -111,6 +112,22 @@ static AVL_DECLARE_INSERT_FUNCTION(routeSortAVLInsertDist, RouteSortAVL, RouteSo
 static AVL_DECLARE_INSERT_FUNCTION(routeSortAVLInsertId, RouteSortAVL, RouteSortInfo,
                                    (AVLCreateFunc) &routeSortAVLCreate, (AVLCompareValueFunc) &routeSortAVLCompareId)
 
+// Find the element with the 10th highest distance value.
+// This will be used as a threshold to avoid inserting useless elements in the AVL tree
+static float findThresholdSortAVL(RouteSortAVL* tree, float top[10], int* i)
+{
+    if (tree == NULL || *i >= 10)
+    {
+        return 0.0f;
+    }
+
+    findThresholdSortAVL(tree->right, top, i);
+    top[(*i)++] = tree->info.dist;
+    findThresholdSortAVL(tree->left, top, i);
+
+    return top[9];
+}
+
 static void extractTop10(RouteSortAVL* distSorted, RouteSortAVL** top, int* n)
 {
     if (distSorted == NULL || *n >= 10)
@@ -143,6 +160,12 @@ static void printTop10(RouteSortAVL* top)
     printTop10(top->right);
 }
 
+typedef struct StepPart
+{
+    uint32_t routeId;
+    float distance;
+} StepPart;
+
 void computationL(RouteStream* stream)
 {
     PROFILER_START("Computation L");
@@ -152,26 +175,45 @@ void computationL(RouteStream* stream)
     RouteDistMap map;
     routeDistInit(&map, 1 << 16, 0.7f); // 65536 capacity
 
+    Partitioner partitioner;
+    partitionerInit(&partitioner, 64, 65536);
+
     RouteStep step;
     while (rsRead(stream, &step, ROUTE_ID | DISTANCE))
     {
-        RouteDistEntry* entry = routeDistLookup(&map, step.routeId);
+        StepPart part = {step.routeId, step.distance};
+        partinitionerAddS(&partitioner, step.routeId, part);
+    }
+
+    PARTITIONER_ITERATE(&partitioner, StepPart, stepPart)
+    {
+        RouteDistEntry* entry = routeDistLookup(&map, stepPart->routeId);
         if (entry == NULL)
         {
-            entry = routeDistInsert(&map, step.routeId);
+            entry = routeDistInsert(&map, stepPart->routeId);
             entry->dist = 0.0f;
         }
 
-        entry->dist += step.distance;
+        entry->dist += stepPart->distance;
     }
 
+
     RouteSortAVL* distSorted = NULL;
+    float threshold = 0.0f;
+    uint32_t num = 0;
     for (uint32_t i = 0; i < map.capacity; ++i)
     {
-        if (map.entries[i].occupied)
+        if (map.entries[i].occupied && map.entries[i].dist >= threshold)
         {
             RouteSortInfo info = {map.entries[i].id, map.entries[i].dist};
             distSorted = routeSortAVLInsertDist(distSorted, &info, NULL, NULL);
+
+            num++;
+            if (num >= 10)
+            {
+                float top[10]; int ti = 0;
+                threshold = findThresholdSortAVL(distSorted, top, &ti);
+            }
         }
     }
 
@@ -181,6 +223,7 @@ void computationL(RouteStream* stream)
     printTop10(top);
 
     routeDistFree(&map);
+    partitionerFree(&partitioner);
     memFree(&routeSortAVLMem);
 
     PROFILER_END();
