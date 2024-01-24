@@ -122,7 +122,10 @@ static float findThresholdSortAVL(RouteSortAVL* tree, float top[10], int* i)
     }
 
     findThresholdSortAVL(tree->right, top, i);
-    top[(*i)++] = tree->info.dist;
+    if (*i < 10)
+    {
+        top[(*i)++] = tree->info.dist;
+    }
     findThresholdSortAVL(tree->left, top, i);
 
     return top[9];

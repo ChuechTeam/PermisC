@@ -127,7 +127,10 @@ static float findThresholdSortAVL(TravelSortAVL* tree, float top[50], int* i)
     }
 
     findThresholdSortAVL(tree->right, top, i);
-    top[(*i)++] = tree->deltaMaxMin;
+    if (*i < 50)
+    {
+        top[(*i)++] = tree->deltaMaxMin;
+    }
     findThresholdSortAVL(tree->left, top, i);
 
     return top[49];
