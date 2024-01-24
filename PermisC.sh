@@ -332,7 +332,7 @@ comp_d1() {
   if [ $QL1 -eq 1 ]; then
     "$PERMISC_EXEC" -d1 "$CSV_FILE"
   else
-    $AWK -F ';' -f "$AWK_COMP_DIR/d1.awk" "$CSV_FILE" | LC_ALL=C sort -t ';' -k2nr -S 50% | head -n 10
+    LC_ALL=C $AWK -F ';' -f "$AWK_COMP_DIR/d1.awk" "$CSV_FILE" | LC_ALL=C sort -t ';' -k2nr -S 50% | head -n 10
   fi
   return $?
 }
@@ -341,7 +341,7 @@ comp_d2() {
   if [ $QL1 -eq 1 ]; then
     "$PERMISC_EXEC" -d2 "$CSV_FILE"
   else
-    $AWK -F ';' -f "$AWK_COMP_DIR/d2.awk" "$CSV_FILE" | sort -t ';' -k2 -nr | head -n 10
+    LC_ALL=C $AWK -F ';' -f "$AWK_COMP_DIR/d2.awk" "$CSV_FILE" | LC_ALL=C sort -t ';' -k2 -nr | head -n 10
   fi
   return $?
 }
@@ -350,7 +350,7 @@ comp_l() {
   if [ $QL1 -eq 1 ]; then
     "$PERMISC_EXEC" -l "$CSV_FILE"
   else
-    $AWK -F ';' -f "$AWK_COMP_DIR/l.awk" "$CSV_FILE" | sort -t ';' -k2nr | head -n 10 | sort -t ';' -k1,1n
+    LC_ALL=C $AWK -F ';' -f "$AWK_COMP_DIR/l.awk" "$CSV_FILE" | LC_ALL=C sort -t ';' -k2nr | head -n 10 | sort -t ';' -k1,1n
   fi
   return $?
 }
