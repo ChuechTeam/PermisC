@@ -27,7 +27,7 @@ fi
 # Some commands don't work on Mac OS for example, and some bash features are missing,
 # so we need to adjust stuff for it to just work.
 if [[ "$OSTYPE" != "linux-gnu"* ]] || (( BASH_VERSINFO[0] < 4 )) || [ "${COMPAT_MODE:-0}" -eq 1 ]; then
-  echo "⚠️ Attention : mode de compatibilité activé ! (Bash < 4 ou OS autre que GNU/Linux)" >&2
+  echo "⚠️  Attention : mode de compatibilité activé ! (Bash < 4 ou OS autre que GNU/Linux)" >&2
   COMPAT_MODE=1
 else
   COMPAT_MODE=0
@@ -469,3 +469,30 @@ if [ "$LIVING_DANGEROUSLY" -eq 1 ]; then
 else
   echo "🚚 Programme terminé ! Les graphiques sont disponibles dans le dossier « images »."
 fi
+
+function print_file_link() {
+  local file="$1"
+  local text="$2"
+
+  local hostname
+  if ! hostname=$(hostname); then
+    if ! hostname=$(uname -n); then
+      hostname="localhost"
+    fi
+  fi
+
+  local url
+  url="file://$hostname/$(realpath "$file")"
+
+  local begin="\e]8;;$url\e\\"
+  local end="\e]8;;\e\\"
+
+  echo -e "$begin$text$end"
+}
+
+for comp in "${COMPUTATIONS[@]}"; do
+  GRAPH=$(graph_out_file "$comp")
+  COMP_NAME=$(comp_name "$comp")
+  echo -n "➡ "
+  print_file_link "$GRAPH" "Ouvrir le graphique $COMP_NAME"
+done
