@@ -3,5 +3,5 @@
 }
 END {
     for (t in trips)
-        print t ";" trips[t]
+        printf "%s;%.6f\n", t, trips[t]
 }

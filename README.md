@@ -10,7 +10,7 @@ Néanmoins, il existe un fichier CMake pour pouvoir compiler le programme C sur 
 de graphiques est impossible.
 
 ## Prérequis
-- Un compilateur C (gcc, clang, ...), inclus dans le paquet `build-essential` sur Debian compatible avec le standard C11
+- Un compilateur C (gcc, clang, ...) compatible avec le standard C11, inclus dans le paquet `build-essential` sur Debian
 - Make, inclus dans le paquet `build-essential` sur Debian
 - Gnuplot 5.0 ou plus récent, paquet `gnuplot` sur Debian
 - Une implémentation d'awk, mawk est vivement recommandé et choisi si possible
@@ -39,7 +39,7 @@ Une fois les traitements terminés et les graphiques générés, les graphiques 
 à l'intérieur du dossier de Permis C. Les résultats des traitements sont disponibles dans le dossier `temp`.
 
 En supplément, l'argument `-Q` ou `--quick` permet d'utiliser des algorithmes plus rapides ! Il est possible de spécifier
-un nombre de 0 à 3 après l'argument `-Q`, ce qui permet d'utiliser des algorithmes de plus en plus expérimentaux, 
+un nombre de 0 à 2 après l'argument `-Q`, ce qui permet d'utiliser des algorithmes de plus en plus expérimentaux, 
 mais aussi de plus en plus efficaces :
 
 - `-Q0` : utilise les algorithmes par défaut, utilisant Awk si possible, ou l'algorithme de base en C sinon :

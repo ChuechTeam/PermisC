@@ -3,5 +3,6 @@
 }
 END {
     for (c in drivers)
-        print c ";" drivers[c]
+        printf "%s;%.6f\n", c, drivers[c]
+    # print c ";" drivers[c]
 }
