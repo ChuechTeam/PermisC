@@ -1,5 +1,3 @@
-#include <partition.h>
-
 #include "compile_settings.h"
 
 #if EXPERIMENTAL_ALGO
@@ -15,6 +13,7 @@
 #include "mem_alloc.h"
 #include "profile.h"
 #include "map.h"
+#include "partition.h"
 
 /*
  * [EXPERIMENTAL!] Computation T implementation
@@ -404,7 +403,7 @@ void computationT(RouteStream* stream)
     // Just tracks the current town id, and increments it for the next town we encounter.
     TownNodeId idCounter = 0;
 
-    routeMapInit(&routes, 8192, 0.75f);
+    routeMapInit(&routes, 8192, 0.25f); // Low load factor because we have low cardinality
     // A lower load factor is better for this map as strings are really just stored
     // in another memory region, and the key bottleneck is comparing strings; we must
     // then reduce the number of collisions as much as possible.
