@@ -266,7 +266,7 @@ static void mapClear(Map* map, const int32_t newCapacity, const MapMeta meta)
 
 #define M_PASS_X(b, k) M_PASS_ ## b (k)
 
-#define MAP_DECLARE_FUNCTIONS_STATIC(funcPrefix, entryType, keyType, byVal) \
+#define MAP_DECLARE_FUNCTIONS_STATIC(funcPrefix, entryType, keyType, useIndirection) \
     static void funcPrefix ## Init (CURRENT_MAP_TYPE()* map, uint32_t initialCapacity, float loadFactor) \
     { \
         mapInit((Map*) map, initialCapacity, loadFactor, MAP_META(entryType)); \
@@ -274,13 +274,13 @@ static void mapClear(Map* map, const int32_t newCapacity, const MapMeta meta)
     \
     static entryType* funcPrefix ## Lookup (CURRENT_MAP_TYPE()* map, keyType key) \
     { \
-        return (entryType*) mapLookup((Map*) map, M_PASS_X(byVal, key), \
+        return (entryType*) mapLookup((Map*) map, M_PASS_X(useIndirection, key), \
                                       MAP_META(entryType)); \
     } \
     \
     static entryType* funcPrefix ## Insert (CURRENT_MAP_TYPE()* map, keyType key) \
     { \
-        return (entryType*) mapInsert((Map*) map, M_PASS_X(byVal, key), \
+        return (entryType*) mapInsert((Map*) map, M_PASS_X(useIndirection, key), \
                                       MAP_META(entryType)); \
     } \
     static void funcPrefix ## Free (CURRENT_MAP_TYPE()* map) \

@@ -13,10 +13,11 @@
 #include "profile.h"
 #include "map.h"
 #include "mem_alloc.h"
+#include "partition.h"
 
 static MemArena driverStringListMem;
-static MemArena driverAVLMem;
 static MemArena driverSortAVLMem;
+static MemArena driverStringsMem;
 
 // Computation D1
 // ------------------------
@@ -73,8 +74,8 @@ static void llStrAdd(LLStr* list, char* value)
 // Value: Linked list of drivers who have driven this route.
 typedef struct RouteMapEntry
 {
-    bool occupied : 1;
-    uint32_t key : 31;
+    bool occupied;
+    uint32_t key;
     LLStr drivers;
 } RouteMapEntry;
 
@@ -88,7 +89,7 @@ typedef struct
 
 static inline uint32_t MAP_HASH_FUNC(const void* key, uint32_t capacityExponent)
 {
-    uint32_t a = * (uint32_t*) key;
+    uint32_t a = *(uint32_t*) key;
     a *= 2654435769U;
     return a >> (32 - capacityExponent);
 }
@@ -111,10 +112,7 @@ static inline void MAP_MARK_OCCUPIED_FUNC(RouteMapEntry* entry, uint32_t* key)
 
 static inline uint32_t* MAP_GET_KEY_PTR_FUNC(RouteMapEntry* entry, MapKeyScratch scratch)
 {
-    uint32_t* scratch32 = (uint32_t*) scratch;
-
-    *scratch32 = entry->key;
-    return scratch32;
+    return &entry->key;
 }
 
 MAP_DECLARE_FUNCTIONS_STATIC(routeMap, RouteMapEntry, uint32_t, true)
@@ -122,37 +120,71 @@ MAP_DECLARE_FUNCTIONS_STATIC(routeMap, RouteMapEntry, uint32_t, true)
 #undef CURRENT_MAP_TYPE
 
 /*
- * DRIVER AVL
+ * DRIVER MAP
  */
 
-typedef struct DriverAVL
+typedef struct
 {
-    AVL_HEADER(DriverAVL)
+    char* str;
+    uint32_t length;
+} MeasuredString;
 
+typedef struct DriverEntry
+{
+    char* name; // NULL if empty.
+    uint32_t length;
     uint32_t routeCount;
-    char name[];
-} DriverAVL;
+} DriverEntry;
 
-static DriverAVL* driverAVLCreate(const char* name)
+typedef struct DriverMap
 {
-    size_t len = strlen(name);
-    DriverAVL* node = memAlloc(&driverAVLMem, sizeof(DriverAVL) + len + 1);
-    assert(node);
+    MAP_HEADER(DriverEntry)
+} DriverMap;
 
-    AVL_INIT(node);
-    memcpy(node->name, name, len + 1);
-    node->routeCount = 0;
+#define CURRENT_MAP_TYPE() DriverMap
 
-    return node;
+static inline uint32_t MAP_HASH_FUNC(const MeasuredString* key, uint32_t capacityExponent)
+{
+    uint32_t a = 0;
+    for (uint32_t i = 0; i < key->length; i++)
+    {
+        a *= 31;
+        a += key->str[i];
+    }
+    return a;
 }
 
-static int driverAVLCompare(const DriverAVL* a, const char* name)
+static inline bool MAP_KEY_EQUAL_FUNC(const DriverEntry* entry, const MeasuredString* key)
 {
-    return strcmp(a->name, name);
+    return entry->length == key->length && memcmp(entry->name, key->str, key->length) == 0;
 }
 
-AVL_DECLARE_FUNCTIONS_STATIC(driverAVL, DriverAVL, const char,
-                             (AVLCreateFunc) &driverAVLCreate, (AVLCompareValueFunc) &driverAVLCompare)
+static inline bool MAP_GET_OCCUPIED_FUNC(const DriverEntry* entry)
+{
+    return entry->name != NULL;
+}
+
+static inline void MAP_MARK_OCCUPIED_FUNC(DriverEntry* entry, MeasuredString* key)
+{
+    char* copy = memAlloc(&driverStringsMem, key->length + 1);
+    memcpy(copy, key->str, key->length + 1);
+
+    entry->name = copy;
+    entry->length = key->length;
+}
+
+static inline MeasuredString* MAP_GET_KEY_PTR_FUNC(DriverEntry* entry, MapKeyScratch scratch)
+{
+    MeasuredString* scratchStr = (MeasuredString*) scratch;
+
+    scratchStr->str = entry->name;
+    scratchStr->length = entry->length;
+    return scratchStr;
+}
+
+MAP_DECLARE_FUNCTIONS_STATIC(driverMap, DriverEntry, MeasuredString, true)
+
+#undef CURRENT_MAP_TYPE
 
 /*
  * ------------
@@ -216,7 +248,7 @@ static int driverSortAVLCompare(const DriverSortAVL* a, const DriverSortAVLData*
 }
 
 static AVL_DECLARE_INSERT_FUNCTION(driverSortAVLInsert, DriverSortAVL, DriverSortAVLData,
-                            (AVLCreateFunc) &driverSortAVLCreate, (AVLCompareValueFunc) &driverSortAVLCompare)
+                                   (AVLCreateFunc) &driverSortAVLCreate, (AVLCompareValueFunc) &driverSortAVLCompare)
 
 /*
  * ------------
@@ -227,86 +259,122 @@ static AVL_DECLARE_INSERT_FUNCTION(driverSortAVLInsert, DriverSortAVL, DriverSor
 // Define the prototype of the functions used in computationD1 first, so we get the declarations later.
 // It would be weird to have the functions used in the computation before the computation itself!
 
-static void sortDriversByRouteCount(DriverAVL* drivers, DriverSortAVL** sortedDrivers);
+static void sortDriversByRouteCount(DriverMap* drivers, DriverSortAVL** sortedDrivers);
 
 static void printTop10Drivers(const DriverSortAVL* node, int* n);
 
 void computationD1(RouteStream* stream)
 {
-    memInit(&driverStringListMem, 512 * 1024);
-    memInit(&driverAVLMem, 1024 * 1024);
-    memInit(&driverSortAVLMem, 1024 * 1024);
+    memInit(&driverStringListMem, 256 * 1024);
+    memInit(&driverStringsMem, 256 * 1024);
+    memInit(&driverSortAVLMem, 256 * 1024);
 
-    // The AVL containing all drivers by their name, with the number of routes they have taken
-    // (in extraData, with the DriverData struct), for lookup.
-    //
-    // This AVL contains all the strings for driver names, copied from each RouteStep.
-    // The driver name strings in this AVL are entirely valid through the entire computation,
-    // which avoids string duplication and memory management nightmares -- no more segfaults!
+    // The map containing all drivers by their name, with the number of routes they have taken.
     //
     // You can think of it as a dictionary, or a function/map:
     //    f(driverName) -> routeCount
-    DriverAVL* drivers = NULL;
+    DriverMap drivers;
+    driverMapInit(&drivers, 4096, 0.75f);
 
     // The map containing all routes, for lookup.
     // Each route in this map holds a list of all drivers who have already drove this route.
     //
     // It's really just a function:
     //     f(routeId) -> [driverName1, driverName2, ...]
-    RouteMap map;
-    routeMapInit(&map, (1 << 16), 0.7f); // 65536 is good
+    RouteMap routes;
+    routeMapInit(&routes, 8192, 0.25f); // Use 8192 as we do partitioning
 
-    // Phase 1: Read all the route steps
-    // ------------------------------------------
-    // Let's read all the route steps and fill our two intermediate AVLs with data.
-    // The routes AVL will be used to filter out drivers we've already seen on a particular route.
+    // Splits all the route steps into multiple buckets for better
+    // cache locality.
+    Partitioner partitioner;
+    partitionerInit(&partitioner, 64, 66536);
+
+    struct StepPart
     {
-        PROFILER_START("D1: Read routes and register drivers");
+        uint32_t routeId;
+        uint32_t driverLen;
+        char* driverName;
+    };
+
+    // Step 1: Write all steps to partitions, and register drivers
+    // ------------------------------------------
+    // For better performance, we'll copy every step to partitions with similar route ids.
+    // During this phase, we are also going to register all drivers into the map first,
+    // so we can later compare strings very fast.
+    {
+        PROFILER_START("Write to partitions and register drivers");
 
         RouteStep step;
         while (rsRead(stream, &step, ROUTE_ID | DRIVER_NAME))
         {
-            RouteMapEntry* entry = routeMapLookup(&map, step.routeId);
+            MeasuredString str = (MeasuredString){step.driverName, step.driverNameLen};
+            DriverEntry* entry = driverMapLookup(&drivers, str);
             if (!entry)
             {
-                entry = routeMapInsert(&map, step.routeId);
-                entry->drivers = (LLStr) { .value = NULL, .next = NULL };
+                entry = driverMapInsert(&drivers, str);
             }
-            LLStr* driversInRoute = &entry->drivers;
 
-            // Has the driver already been seen on this route?
-            bool driverAlreadySeen = false;
-            LLStr* it = driversInRoute;
-            // Traverse the linked list of drivers already assigned to this route.
-            while (it && it->value != NULL)
+            struct StepPart part = {step.routeId, step.driverNameLen, entry->name};
+            partinitionerAddS(&partitioner, step.routeId, part);
+        }
+
+        PROFILER_END();
+    }
+
+    // Phase 2: Read all the route steps
+    // ------------------------------------------
+    // Let's read all the route steps and fill our two intermediate AVLs with data.
+    // The routes AVL will be used to filter out drivers we've already seen on a particular route.
+    {
+        PROFILER_START("Read partitions and count routes per driver");
+
+        for (Partition* partition = partitioner.partitions;
+            partition != (partitioner.partitions + partitioner.numPartitions);
+            ++partition)
+        {
+            PARTITION_ITERATE(&partitioner, partition, struct StepPart, p)
             {
-                if (strcmp(it->value, step.driverName) == 0)
+                RouteMapEntry* entry = routeMapLookup(&routes, p->routeId);
+                if (!entry)
                 {
-                    driverAlreadySeen = true;
-                    break;
-                }
-                it = it->next;
-            }
-
-            if (!driverAlreadySeen)
-            {
-                // If the driver has not been seen on this route, register it.
-                // Insert the driver into the AVL, or use the exisiting node.
-                DriverAVL* driverNode;
-                driverNode = driverAVLLookup(drivers, step.driverName);
-                if (!driverNode)
-                {
-                    drivers = driverAVLInsert(drivers, step.driverName, &driverNode, NULL);
+                    entry = routeMapInsert(&routes, p->routeId);
+                    entry->drivers = (LLStr){.value = NULL, .next = NULL};
                 }
 
-                // Increment its routeCount value.
-                driverNode->routeCount++;
+                // Has the driver already been seen on this route?
+                bool driverAlreadySeen = false;
+                LLStr* it = &entry->drivers;
+                // Traverse the linked list of drivers already assigned to this route.
+                while (it && it->value != NULL)
+                {
+                    // Here we can use pointer comparison, as both strings refer to the ones
+                    // used in the map.
+                    if (it->value == p->driverName)
+                    {
+                        driverAlreadySeen = true;
+                        break;
+                    }
+                    it = it->next;
+                }
 
-                // Add it to the list of drivers involved in this route.
-                // Use the string located in the AVL since it is valid through the entire computation.
-                char* driverName = driverNode->name;
-                llStrAdd(driversInRoute, driverName);
+                if (!driverAlreadySeen)
+                {
+                    // Find the driver in the map, we've already added it earlier.
+                    MeasuredString drivStr = {p->driverName, p->driverLen};
+                    DriverEntry* driverNode = driverMapLookup(&drivers, drivStr);
+
+                    // Increment its routeCount value.
+                    driverNode->routeCount++;
+
+                    // Add it to the list of drivers involved in this route.
+                    // Use the string located in the map (precisely in the strings memory arena)
+                    // since it is valid through the entire computation.
+                    char* storedName = driverNode->name;
+                    llStrAdd(&entry->drivers, storedName);
+                }
             }
+
+            routeMapClear(&routes, -1);
         }
 
         PROFILER_END();
@@ -316,16 +384,16 @@ void computationD1(RouteStream* stream)
     // We're going to extract the 10 largest elements from it.
     DriverSortAVL* bestDrivers = NULL;
 
-    // Phase 2: Sort the drivers by route count
+    // Phase 3: Sort the drivers by route count
     // ------------------------------------------
     // There, we're just going to insert all the drivers into a specialized AVL (DriverSortAVL).
     //
     // AVL trees have the property to be sorted at all times, so we can do a reverse in-order traversal
     // to get the 10 drivers with the most routes.
     {
-        PROFILER_START("D1: Sort drivers by route count");
+        PROFILER_START("Sort drivers by route count");
 
-        sortDriversByRouteCount(drivers, &bestDrivers);
+        sortDriversByRouteCount(&drivers, &bestDrivers);
 
         int n = 0;
         printTop10Drivers(bestDrivers, &n);
@@ -333,43 +401,43 @@ void computationD1(RouteStream* stream)
         PROFILER_END();
     }
 
-    // Phase 3: Free everything
+    // Phase 4: Free everything
     // ------------------------------------------
     // We're done, and we can just free all the AVL trees we have created.
     {
-        PROFILER_START("D1: Free stuff")
+        PROFILER_START("Free stuff")
 
         // Free the entire hash map.
-        routeMapFree(&map);
+        routeMapFree(&routes);
+        driverMapFree(&drivers);
 
         // Free all the memory arenas.
         memFree(&driverStringListMem);
-        memFree(&driverAVLMem);
+        memFree(&driverStringsMem);
         memFree(&driverSortAVLMem);
 
         PROFILER_END();
     }
 }
 
-// Transfer all drivers from the 'drivers' AVL (which is NOT sorted according to the route count)
+// Transfer all drivers from the drivers map
 // to the sorting AVL, using a simple pre-order traversal.
-static void sortDriversByRouteCount(DriverAVL* drivers, DriverSortAVL** sortedDrivers)
+static void sortDriversByRouteCount(DriverMap* drivers, DriverSortAVL** sortedDrivers)
 {
-    if (drivers == NULL)
+    for (uint32_t i = 0; i < drivers->capacity; ++i)
     {
-        return;
+        DriverEntry* entry = &drivers->entries[i];
+
+        if (entry->name != NULL)
+        {
+            DriverSortAVLData insertion = {
+                .routesTaken = entry->routeCount,
+                .driverName = entry->name
+            };
+            // We're using a double pointer so we can modify the root (in case *sortedDrivers is NULL for example).
+            *sortedDrivers = driverSortAVLInsert(*sortedDrivers, &insertion, NULL, NULL);
+        }
     }
-
-    sortDriversByRouteCount(drivers->left, sortedDrivers);
-
-    DriverSortAVLData insertion = {
-        .routesTaken = drivers->routeCount,
-        .driverName = drivers->name
-    };
-    // We're using a double pointer so we can modify the root (in case *sortedDrivers is NULL for example).
-    *sortedDrivers = driverSortAVLInsert(*sortedDrivers, &insertion, NULL, NULL);
-
-    sortDriversByRouteCount(drivers->right, sortedDrivers);
 }
 
 // A simple in-order traversal to print the top 10 drivers and the number of routes taken.

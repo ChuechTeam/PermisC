@@ -9,47 +9,86 @@
 #include "avl.h"
 #include "profile.h"
 #include "mem_alloc.h"
+#include "map.h"
 
-MemArena driverAVLMem;
 MemArena driverSortAVLMem;
+MemArena driverStringsMem;
 
-typedef struct DriverAVL
+/*
+ * Driver Map
+ */
+
+typedef struct
 {
-    AVL_HEADER(DriverAVL)
+    char* str;
+    uint32_t length;
+} MeasuredString;
 
+typedef struct DriverEntry
+{
+    char* name; // NULL if empty.
+    uint32_t length;
     float dist;
-    char name[]; // Flexible array member
-} DriverAVL;
+} DriverEntry;
 
-static DriverAVL* driverAVLCreate(const char* name)
+typedef struct DriverMap
 {
-    size_t len = strlen(name);
-    DriverAVL* tree = memAlloc(&driverAVLMem, sizeof(DriverAVL) + len + 1);
-    // Stuff allocated by memAlloc do not need to be checked.
+    MAP_HEADER(DriverEntry)
+} DriverMap;
 
-    AVL_INIT(tree);
-    tree->dist = 0.0f;
-    memcpy(tree->name, name, len + 1);
+#define CURRENT_MAP_TYPE() DriverMap
 
-    return tree;
+static inline uint32_t MAP_HASH_FUNC(const MeasuredString* key, uint32_t capacityExponent)
+{
+    uint32_t a = 0;
+    for (uint32_t i = 0; i < key->length; i++)
+    {
+        a *= 31;
+        a += key->str[i];
+    }
+    return a;
 }
 
-static int driverAVLCompare(DriverAVL* tree, const char* name)
+static inline bool MAP_KEY_EQUAL_FUNC(const DriverEntry* entry, const MeasuredString* key)
 {
-    return strcmp(tree->name, name);
+    return entry->length == key->length && memcmp(entry->name, key->str, key->length) == 0;
 }
 
-AVL_DECLARE_FUNCTIONS_STATIC(driverAVL, DriverAVL, const char,
-                             (AVLCreateFunc) &driverAVLCreate, (AVLCompareValueFunc) &driverAVLCompare)
+static inline bool MAP_GET_OCCUPIED_FUNC(const DriverEntry* entry)
+{
+    return entry->name != NULL;
+}
+
+static inline void MAP_MARK_OCCUPIED_FUNC(DriverEntry* entry, MeasuredString* key)
+{
+    char* copy = memAlloc(&driverStringsMem, key->length + 1);
+    memcpy(copy, key->str, key->length + 1);
+
+    entry->name = copy;
+    entry->length = key->length;
+}
+
+static inline MeasuredString* MAP_GET_KEY_PTR_FUNC(DriverEntry* entry, MapKeyScratch scratch)
+{
+    MeasuredString* scratchStr = (MeasuredString*) scratch;
+
+    scratchStr->str = entry->name;
+    scratchStr->length = entry->length;
+    return scratchStr;
+}
+
+MAP_DECLARE_FUNCTIONS_STATIC(driverMap, DriverEntry, MeasuredString, true)
+
+#undef CURRENT_MAP_TYPE
 
 typedef struct DriverSortAVL
 {
     AVL_HEADER(DriverSortAVL)
 
-    DriverAVL* driver;
+    DriverEntry* driver;
 } DriverSortAVL;
 
-static DriverSortAVL* driverSortAVLCreate(DriverAVL* driver)
+static DriverSortAVL* driverSortAVLCreate(DriverEntry* driver)
 {
     DriverSortAVL* tree = memAlloc(&driverSortAVLMem, sizeof(DriverSortAVL));
 
@@ -59,7 +98,7 @@ static DriverSortAVL* driverSortAVLCreate(DriverAVL* driver)
     return tree;
 }
 
-static int driverSortAVLCompare(DriverSortAVL* tree, DriverAVL* driver)
+static int driverSortAVLCompare(DriverSortAVL* tree, DriverEntry* driver)
 {
     if (tree->driver->dist > driver->dist)
     {
@@ -75,19 +114,18 @@ static int driverSortAVLCompare(DriverSortAVL* tree, DriverAVL* driver)
     }
 }
 
-AVL_DECLARE_FUNCTIONS_STATIC(driverSortAVL, DriverSortAVL, DriverAVL,
+AVL_DECLARE_FUNCTIONS_STATIC(driverSortAVL, DriverSortAVL, DriverEntry,
                              (AVLCreateFunc) &driverSortAVLCreate, (AVLCompareValueFunc) &driverSortAVLCompare)
 
-static void sortDrivers(DriverAVL* drivers, DriverSortAVL** sorted)
+static void sortDrivers(DriverMap* drivers, DriverSortAVL** sorted)
 {
-    if (drivers == NULL)
+    for (uint32_t i = 0; i < drivers->capacity; ++i)
     {
-        return;
+        if (drivers->entries[i].name != NULL)
+        {
+            *sorted = driverSortAVLInsert(*sorted, &drivers->entries[i], NULL, NULL);
+        }
     }
-
-    *sorted = driverSortAVLInsert(*sorted, drivers, NULL, NULL);
-    sortDrivers(drivers->left, sorted);
-    sortDrivers(drivers->right, sorted);
 }
 
 static void printTop10(DriverSortAVL* tree, int* n)
@@ -112,18 +150,21 @@ void computationD2(RouteStream* stream)
 {
     PROFILER_START("Computation D2");
 
-    DriverAVL* drivers = NULL;
+    DriverMap drivers;
+    driverMapInit(&drivers, 4096, 0.75f);
 
-    memInit(&driverAVLMem, 512 * 1024);
     memInit(&driverSortAVLMem, 128 * 1024);
+    memInit(&driverStringsMem, 256 * 1024);
 
     RouteStep step;
     while (rsRead(stream, &step, DRIVER_NAME | DISTANCE))
     {
-        DriverAVL* driver = driverAVLLookup(drivers, step.driverName);
+        MeasuredString drivStr = { step.driverName, step.driverNameLen };
+
+        DriverEntry* driver = driverMapLookup(&drivers, drivStr);
         if (driver == NULL)
         {
-            drivers = driverAVLInsert(drivers, step.driverName, &driver, NULL);
+            driver = driverMapInsert(&drivers, drivStr);
         }
 
         driver->dist += step.distance;
@@ -132,11 +173,12 @@ void computationD2(RouteStream* stream)
     DriverSortAVL* sorted = NULL;
     int n = 0;
 
-    sortDrivers(drivers, &sorted);
+    sortDrivers(&drivers, &sorted);
     printTop10(sorted, &n);
 
-    memFree(&driverAVLMem);
+    driverMapFree(&drivers);
     memFree(&driverSortAVLMem);
+    memFree(&driverStringsMem);
 
     PROFILER_END();
 }
