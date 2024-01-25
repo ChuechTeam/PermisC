@@ -15,15 +15,15 @@ set datafile separator ";"
 
 # Horizontal bar graph technique taken from
 # https://stackoverflow.com/questions/62848395/horizontal-bar-chart-in-gnuplot/62854722#62854722 
-set yrange [0:*]      # start at zero, find max from the data
-set style fill solid  # solid color boxes
-unset key             # turn off all titles
+set yrange [0:*] reverse      # start at zero, find max from the data
+set style fill solid          # solid color boxes
+unset key                     # turn off all titles
 
 myBoxWidth = 0.8
 set offsets 0,0,0.5-myBoxWidth/2.,0.5
 
 # x  y dx dy
-plot "<awk -F ';' '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }' \"".ARG1."\"" using\
+plot ARG1 using\
     (0.5*$2):\
     0:\
     (0.5*$2):\
