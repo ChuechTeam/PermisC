@@ -5,12 +5,12 @@ set style fill solid 0.5
 set boxwidth 0.8
 set ytics nomirror
 set xtics nomirror
-set xtics font ",8"
-set xtics rotate by -315 right
+set xtics font ",7"
+set xtics rotate by -320 right
 set ylabel "Distance (km)"
 set xlabel "Identifiant du trajet"
 set title "Option -s: Distance = f(Route) "
-set terminal pngcairo size 800,600
+set terminal pngcairo size 1000,600
 set output ARG2
 datafile = ARG1
 set yrange [0:*]
