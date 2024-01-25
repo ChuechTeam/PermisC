@@ -8,7 +8,6 @@ add_executable(PermisC
         src/route.c
         src/profile.c
         src/avl.c
-        src/string_avl.c
         src/computations/computation_d1_ex.c
         src/computations/computation_d2_ex.c
         src/computations/computation_l_ex.c

@@ -43,6 +43,8 @@
 // struct IntAVL { AVL avl; int value; };
 // Example 2:
 // struct IntAVL { struct IntAVL* left, right; int balance; int value; };
+// Example 3 (recommended):
+// struct IntAVL { AVL_HEADER(IntAVL) int value; };
 typedef struct AVL
 {
     AVL_HEADER(AVL)
@@ -59,27 +61,11 @@ typedef int (*AVLCompareValueFunc)(const AVL* a, const void* b);
 // Allocates an AVL node with the given value.
 typedef AVL* (*AVLCreateFunc)(void* value);
 
-typedef struct
-{
-    AVLCompareValueFunc compare;
-    AVLCreateFunc create;
-} AVLFuncs;
-
-AVL* avlRotateLeft(AVL* a);
-
-AVL* avlRotateRight(AVL* a);
-
-AVL* avlDoubleRotateRight(AVL* tree);
-
-AVL* avlDoubleRotateLeft(AVL* tree);
-
-AVL* avlBalance(AVL* tree);
-
+// Inserts some value into the AVL. Returns the new root of the AVL tree.
 AVL* avlInsert(AVL* tree, void* value, AVLCreateFunc create, AVLCompareValueFunc compare, AVL** insertedNode,
                bool* alreadyPresent);
 
+// Search for a node with the given value in the AVL. Returns the found node.
 AVL* avlLookup(AVL* tree, const void* value, AVLCompareValueFunc compare);
-
-// TODO: Delete functions? Sounds like we don't need those in our programs. Maybe I'm wrong...
 
 #endif //AVL_H

@@ -16,4 +16,8 @@
 #define EXPERIMENTAL_ALGO_AVX 0
 #endif
 
+#ifndef ENABLE_PROFILER
+#define ENABLE_PROFILER 1
+#endif
+
 #endif //COMPILE_SETTINGS_H

@@ -1,6 +1,7 @@
 #include "computations.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "compile_settings.h"
 
 #if EXPERIMENTAL_ALGO
 #include "route.h"
@@ -10,7 +11,7 @@
 #include "mem_alloc.h"
 #include "partition.h"
 
-MemArena routeSortAVLMem;
+static MemArena routeSortAVLMem;
 
 typedef struct RouteDistEntry
 {

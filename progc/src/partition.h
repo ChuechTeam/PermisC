@@ -1,6 +1,34 @@
 #ifndef PARTITION_H
 #define PARTITION_H
 
+/*
+ * partition.h
+ * -----------------------
+ * The partitioner is a data structure that stores route steps -- copied from the file --
+ * in multiple partitions. Items with the same key (here, the route id) are stored in the same partition.
+ *
+ * Partitions can be iterated, guaranteeing that all items with the same key are iterated within a single partition.
+ *
+ * Partioning allows for great performance benefits!
+ *  - Iterating partitions instead of the file grants much better CPU cache efficiency, by accessing
+ *    the same memory locations more often.
+ *  - Knowing that we've seen each item of the same key (e.g. steps with the same route id) allows us
+ *    to discard those items in some computations, as we're done with them.
+ *
+ * Usage of the partitioner is usually done in two steps:
+ *  1. Read the file (with RouteStream), and add all items to the partitioner, with partitionerAddS.
+ *  2. Iterate through all the partitions (with PARTITIONER_ITERATE), and run any algorithm on the items.
+ *
+ * That first step induces a slight overhead, and requires a lot of memory,
+ * as all items need to be copied from the file, although items are usually stripped down.
+ * However, the second step is way faster, which compensates the earlier overhead.
+ *
+ * Ultimately, the partitioner works like a small hash map of huge contiguous lists.
+ * Simple, but remarkably efficient!
+ *
+ * Only available with EXPERIMENTAL_ALGO for obvious reasons.
+ */
+
 #include "compile_settings.h"
 #if EXPERIMENTAL_ALGO
 

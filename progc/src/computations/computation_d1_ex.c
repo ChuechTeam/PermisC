@@ -1,3 +1,4 @@
+#include "computations.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include "compile_settings.h"
@@ -7,13 +8,12 @@
 #include <assert.h>
 #include <string.h>
 
-#include "computations.h"
 #include "route.h"
-#include "string_avl.h"
 #include "profile.h"
 #include "map.h"
 #include "mem_alloc.h"
 #include "partition.h"
+#include "avl.h"
 
 static MemArena driverStringListMem;
 static MemArena driverSortAVLMem;

@@ -1,28 +1,21 @@
 #include <stdio.h>
 #include <locale.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "profile.h"
 #include "route.h"
-#include "string_avl.h"
 #include "options.h"
 #include "computations/computations.h"
 #ifdef WIN32
 #include <windows.h>
 #endif
 
-int avlSize(const StringAVL* avl)
-{
-    if (avl == NULL)
-        return 0;
-    return avlSize(avl->left) + avlSize(avl->right) + 1;
-}
-
 int main(int argv, char** argc)
 {
     // Avoid locale-dependant surprises when parsing floats in the CSV.
     // NOTE: We don't use atof anymore... But let's keep it *just in case* you know?
+    // Actually, this is very important for strcmp to work fast and without locale-dependant
+    // weirdnesses.
     setlocale(LC_ALL, "C");
 
     // Fix UTF-8 output for Windows.
@@ -30,10 +23,10 @@ int main(int argv, char** argc)
     SetConsoleOutputCP(CP_UTF8);
 #endif
 
-    // Initialise the profiler.
+    // Initialise the profiler. (Does nothing if it is not enabled.)
     profilerInit();
 
-    // Parse the options (file, computation type, etc.)
+    // Parse the options (file and computation type)
     Options options;
     char optionsErrMsg[256];
     if (!parseOptions(argv, argc, &options, optionsErrMsg))
@@ -73,22 +66,11 @@ int main(int argv, char** argc)
     }
     else
     {
-        printf("Pas de traitement, lancement du petit programme de test qui a rien à voir\n");
+        fprintf(stderr, "Pas de traitement donné !\n");
 
-        StringAVL* driversAVL = NULL;
-        StringAVL* townsAVL = NULL;
-
-        RouteStep step = {0, 0, NULL, 0, NULL, 0, 0.0f, NULL, 0};
-        PROFILER_START("Read all steps + AVL insertion");
-        while (rsRead(&stream, &step, ALL_FIELDS))
-        {
-            driversAVL = stringAVLInsert(driversAVL, step.driverName, NULL, NULL, NULL);
-            townsAVL = stringAVLInsert(townsAVL, step.townA, NULL, NULL, NULL);
-            townsAVL = stringAVLInsert(townsAVL, step.townB, NULL, NULL, NULL);
-        }
-        PROFILER_END();
-
-        printf("Conducteurs : %d | Villes : %d\n", avlSize(driversAVL), avlSize(townsAVL));
+        // We're exiting without closing the stream, but honestly that's not really important,
+        // the process is going to exit anyway...
+        return 1;
     }
 
     rsClose(&stream);

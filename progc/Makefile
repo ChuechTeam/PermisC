@@ -10,10 +10,9 @@ export CC ?= gcc
 # -std=c11: Use the C11 standard
 # -Wall: Enable all warnings (by default there are like nearly none)
 # -Wno-unused-function: Disable warnings for unused functions (that's annoying)
-# -D_POSIX_C_SOURCE=200112L: Enable POSIX functions (for profiling)
 # -g: Enable debug symbols
 # -Isrc: Add the src folder to the include path
-export CFLAGS += -std=c11 -Wall -Wno-unused-function -D_POSIX_C_SOURCE=200112L -g -Isrc
+export CFLAGS += -std=c11 -Wall -Wno-unused-function -g -Isrc
 
 # The optimization level, 1 to enable compiler optimizations.
 export OPTIMIZE ?= 0
@@ -40,6 +39,15 @@ endif
 export EXPERIMENTAL_ALGO_AVX ?= 0
 ifeq ($(EXPERIMENTAL_ALGO_AVX), 1)
 	CFLAGS += -DEXPERIMENTAL_ALGO_AVX=1
+endif
+
+# Set to 1 to enable the profiler (on by default).
+export ENABLE_PROFILER ?= 1
+ifeq ($(ENABLE_PROFILER), 1)
+	# -D_POSIX_C_SOURCE=200112L: Enable required POSIX functions for profiling
+	CFLAGS += -D_POSIX_C_SOURCE=200112L
+else
+	CFLAGS += -DENABLE_PROFILER=0
 endif
 
 # Set to 1 to output assembly files in the build folder.

@@ -39,7 +39,7 @@ typedef struct TravelSortAVL
     Travel* t; // Points to a travel in TravelAVL.
 } TravelSortAVL;
 
-TravelAVL* travelAVLCreate(Travel* travel)
+static TravelAVL* travelAVLCreate(Travel* travel)
 {
     TravelAVL* tree = malloc(sizeof(TravelAVL));
     assert(tree);
@@ -50,18 +50,16 @@ TravelAVL* travelAVLCreate(Travel* travel)
     return tree;
 }
 
-int travelAVLCompare(TravelAVL* tree, Travel* travel)
+static int travelAVLCompare(TravelAVL* tree, Travel* travel)
 {
     return tree->t.id - travel->id;
 }
 
-AVL_DECLARE_INSERT_FUNCTION(travelAVLInsert, TravelAVL, Travel,
-                            (AVLCreateFunc) &travelAVLCreate, (AVLCompareValueFunc) &travelAVLCompare)
-
-AVL_DECLARE_LOOKUP_FUNCTION(travelAVLLookup, TravelAVL, Travel, (AVLCompareValueFunc) &travelAVLCompare)
+AVL_DECLARE_FUNCTIONS_STATIC(travelAVL, TravelAVL, Travel,
+                             (AVLCreateFunc) &travelAVLCreate, (AVLCompareValueFunc) &travelAVLCompare)
 
 // Once we have accumulated all the distances, calculate all the average distances of the travels.
-void calcAvg(TravelAVL* tree)
+static void calcAvg(TravelAVL* tree)
 {
     if (tree == NULL)
     {
@@ -76,8 +74,9 @@ void calcAvg(TravelAVL* tree)
     calcAvg(tree->right);
 }
 
-TravelSortAVL* travelSortAVLCreate(Travel *travel) {
-    TravelSortAVL *tree = malloc(sizeof(TravelSortAVL));
+static TravelSortAVL* travelSortAVLCreate(Travel* travel)
+{
+    TravelSortAVL* tree = malloc(sizeof(TravelSortAVL));
     assert(tree);
 
     tree->t = travel;
@@ -86,7 +85,7 @@ TravelSortAVL* travelSortAVLCreate(Travel *travel) {
     return tree;
 }
 
-int travelSortAVLCompare(TravelSortAVL* tree, Travel* travel)
+static int travelSortAVLCompare(TravelSortAVL* tree, Travel* travel)
 {
     float deltaMaxMin = (tree->t->max - tree->t->min) - (travel->max - travel->min);
     if (deltaMaxMin < 0)
@@ -103,10 +102,10 @@ int travelSortAVLCompare(TravelSortAVL* tree, Travel* travel)
     }
 }
 
-AVL_DECLARE_INSERT_FUNCTION(travelSortAVLInsert, TravelSortAVL, Travel,
-                            (AVLCreateFunc) &travelSortAVLCreate, (AVLCompareValueFunc) &travelSortAVLCompare)
+static AVL_DECLARE_INSERT_FUNCTION(travelSortAVLInsert, TravelSortAVL, Travel,
+                                   (AVLCreateFunc) &travelSortAVLCreate, (AVLCompareValueFunc) &travelSortAVLCompare)
 
-void printTop50(TravelSortAVL* tr, int* n)
+static void printTop50(TravelSortAVL* tr, int* n)
 {
     if (tr == NULL || *n >= 50)
     {
@@ -125,7 +124,7 @@ void printTop50(TravelSortAVL* tr, int* n)
     printTop50(tr->left, n);
 }
 
-void transferToSortAVL(TravelAVL* travels, TravelSortAVL** sorted)
+static void transferToSortAVL(TravelAVL* travels, TravelSortAVL** sorted)
 {
     if (travels == NULL)
     {
@@ -138,7 +137,7 @@ void transferToSortAVL(TravelAVL* travels, TravelSortAVL** sorted)
     transferToSortAVL(travels->right, sorted);
 }
 
-void freeAVL(AVL* tree)
+static void freeAVL(AVL* tree)
 {
     if (tree->left != NULL)
     {
@@ -164,6 +163,8 @@ void computationS(RouteStream* stream)
         TravelAVL* found = travelAVLLookup(travels, &tra);
         if (found == NULL)
         {
+            // Register the travel for the first time, with the same distances for
+            // max, min and sum since there's only one step at the moment.
             tra.max = step.distance;
             tra.min = step.distance;
             tra.sumOrAvg = step.distance; // Sum of all the distances.
@@ -173,6 +174,7 @@ void computationS(RouteStream* stream)
         }
         else
         {
+            // Update the values of the travel: update the max and min, and add to the sum.
             if (found->t.max < step.distance)
             {
                 found->t.max = step.distance;
@@ -191,9 +193,12 @@ void computationS(RouteStream* stream)
 
     // Transform the sum into an average.
     calcAvg(travels);
+    // Put all the elements from the travel AVL the sorting AVL (which sorts by max-min).
     transferToSortAVL(travels, &sorted);
+    // Print the 50 highest elements from the sorting AVL.
     printTop50(sorted, &n);
 
+    // Free all the AVLs.
     freeAVL((AVL*) sorted);
     freeAVL((AVL*) travels);
 

@@ -1,5 +1,7 @@
 #include "profile.h"
 
+#if ENABLE_PROFILER
+
 ProfilerState profState;
 
 void profilerInit()
@@ -8,3 +10,5 @@ void profilerInit()
     QueryPerformanceFrequency(&profState.secFreq);
 #endif
 }
+
+#endif

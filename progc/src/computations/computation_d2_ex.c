@@ -1,6 +1,7 @@
 #include "computations.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "compile_settings.h"
 
 #if EXPERIMENTAL_ALGO
 #include <string.h>
@@ -11,8 +12,8 @@
 #include "mem_alloc.h"
 #include "map.h"
 
-MemArena driverSortAVLMem;
-MemArena driverStringsMem;
+static MemArena driverSortAVLMem;
+static MemArena driverStringsMem;
 
 /*
  * Driver Map

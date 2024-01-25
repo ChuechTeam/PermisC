@@ -9,12 +9,12 @@
 #undef max
 #undef min
 
-int max(const int a, const int b) { return a > b ? a : b; }
-int max3(const int a, const int b, const int c) { return max(max(a, b), c); }
-int min(const int a, const int b) { return a < b ? a : b; }
-int min3(const int a, const int b, const int c) { return min(min(a, b), c); }
+static int max(const int a, const int b) { return a > b ? a : b; }
+static int max3(const int a, const int b, const int c) { return max(max(a, b), c); }
+static int min(const int a, const int b) { return a < b ? a : b; }
+static int min3(const int a, const int b, const int c) { return min(min(a, b), c); }
 
-AVL* avlRotateLeft(AVL* a)
+static AVL* avlRotateLeft(AVL* a)
 {
     //   a                    b     |
     //  / \                  / \    |
@@ -40,7 +40,7 @@ AVL* avlRotateLeft(AVL* a)
     return b;
 }
 
-AVL* avlRotateRight(AVL* a)
+static AVL* avlRotateRight(AVL* a)
 {
     //     a                 b        |
     //    / \               / \       |
@@ -64,19 +64,19 @@ AVL* avlRotateRight(AVL* a)
     return b;
 }
 
-AVL* avlDoubleRotateRight(AVL* tree)
+static AVL* avlDoubleRotateRight(AVL* tree)
 {
     tree->left = avlRotateLeft(tree->left);
     return avlRotateRight(tree);
 }
 
-AVL* avlDoubleRotateLeft(AVL* tree)
+static AVL* avlDoubleRotateLeft(AVL* tree)
 {
     tree->right = avlRotateRight(tree->right);
     return avlRotateLeft(tree);
 }
 
-AVL* avlBalance(AVL* tree)
+static AVL* avlBalance(AVL* tree)
 {
     if (tree->balance >= 2)
     {

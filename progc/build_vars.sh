@@ -7,11 +7,11 @@ set -u
 # (such as CC, CFLAGS, OPTIMIZE, etc.) and trigger a recompilation if so.
 
 if [ "$#" -lt 2 ]; then
-  echo "Wrong usage: build_vars.sh check|update <vars_file>"
+  echo "Wrong usage: build_vars.sh check|update <vars_file>" >&2
   exit 2
 fi
 
-VAR_NAMES=("CC" "CFLAGS" "OPTIMIZE" "OPTIMIZE_NATIVE" "EXPERIMENTAL_ALGO" "EXPERIMENTAL_ALGO_AVX" "ASM")
+VAR_NAMES=("CC" "CFLAGS" "OPTIMIZE" "OPTIMIZE_NATIVE" "EXPERIMENTAL_ALGO" "EXPERIMENTAL_ALGO_AVX" "ASM" "ENABLE_PROFILER")
 print_vars() {
   for var in "${VAR_NAMES[@]}"; do
     if [ -v "$var" ]; then
@@ -39,6 +39,6 @@ case "$1" in
     print_vars > "$VARS_FILE"
     ;;
   *)
-    echo "Wrong usage: build_vars.sh check|update <vars_file>"
+    echo "Wrong usage: build_vars.sh check|update <vars_file>" >&2
     exit 2
 esac

@@ -80,7 +80,8 @@ bool parseOptions(int argc, char** argv, Options* outOptions, char errMsg[256])
         snprintf(errMsg, 256, "Aucun fichier spécifié");
         return false;
     }
-    // No computation can be useful for debugging, let's leave it allowed for now.
+
+    // The case were there's no computation specified is checked by the program later.
 
     return true;
 }

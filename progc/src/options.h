@@ -1,5 +1,12 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
+
+/*
+ * options.h
+ * ----------------
+ * Simply parses arguments: the computation and the CSV file path.
+ */
+
 #include <stdbool.h>
 
 typedef enum

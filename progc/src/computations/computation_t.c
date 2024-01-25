@@ -34,7 +34,7 @@ typedef struct TownSortAVL
     TownAVL* value; // Pointer to TownAVL node.
 } TownSortAVL;
 
-IdAVL* idAVLCreate(uint32_t* id)
+static IdAVL* idAVLCreate(uint32_t* id)
 {
     IdAVL* A = malloc(sizeof(IdAVL)); // Create the tree using malloc.
     assert(A);
@@ -43,17 +43,15 @@ IdAVL* idAVLCreate(uint32_t* id)
     return A;
 }
 
-int idAVLCompare(IdAVL* tree, uint32_t* id)
+static int idAVLCompare(IdAVL* tree, uint32_t* id)
 {
     return tree->id - *id;
 }
 
-AVL_DECLARE_INSERT_FUNCTION(idAVLInsert, IdAVL, const uint32_t,
-                            (AVLCreateFunc) &idAVLCreate, (AVLCompareValueFunc) &idAVLCompare)
-AVL_DECLARE_LOOKUP_FUNCTION(idAVLLookup, IdAVL, const uint32_t,
-                            (AVLCompareValueFunc) &idAVLCompare)
+AVL_DECLARE_FUNCTIONS_STATIC(idAVL, IdAVL, const uint32_t,
+                             (AVLCreateFunc) &idAVLCreate, (AVLCompareValueFunc) &idAVLCompare)
 
-TownAVL* townAVLCreate(const char* townName)
+static TownAVL* townAVLCreate(const char* townName)
 {
     int chars = strlen(townName) + 1;
 
@@ -70,17 +68,15 @@ TownAVL* townAVLCreate(const char* townName)
     return tree;
 }
 
-int townAVLCompare(TownAVL* tree, const char* townName)
+static int townAVLCompare(TownAVL* tree, const char* townName)
 {
     return strcmp(tree->name, townName);
 }
 
-AVL_DECLARE_INSERT_FUNCTION(townAVLInsert, TownAVL, const char,
-                            (AVLCreateFunc) &townAVLCreate, (AVLCompareValueFunc) &townAVLCompare)
-AVL_DECLARE_LOOKUP_FUNCTION(townAVLLookup, TownAVL, const char,
-                            (AVLCompareValueFunc) &townAVLCompare)
+AVL_DECLARE_FUNCTIONS_STATIC(townAVL, TownAVL, const char,
+                             (AVLCreateFunc) &townAVLCreate, (AVLCompareValueFunc) &townAVLCompare)
 
-TownSortAVL* townSortAvlCreate(TownAVL* townNode)
+static TownSortAVL* townSortAvlCreate(TownAVL* townNode)
 {
     TownSortAVL* tree = malloc(sizeof(TownSortAVL));
     assert(tree);
@@ -91,30 +87,31 @@ TownSortAVL* townSortAvlCreate(TownAVL* townNode)
     return tree;
 }
 
-int townSortAVLComparePassed(TownSortAVL* A, TownAVL* T)
+static int townSortAVLComparePassed(TownSortAVL* tree, TownAVL* town)
 {
-    int deltaPassed = A->value->passed - T->passed;
+    int deltaPassed = tree->value->passed - town->passed;
     if (deltaPassed != 0)
     {
         return deltaPassed;
     }
     else
     {
-        return strcmp(A->value->name, T->name);
+        return strcmp(tree->value->name, town->name);
     }
 }
 
-int townSortAVLCompareName(TownSortAVL* A, TownAVL* T)
+static int townSortAVLCompareName(TownSortAVL* tree, TownAVL* town)
 {
-    return strcmp(A->value->name, T->name);
+    return strcmp(tree->value->name, town->name);
 }
 
-AVL_DECLARE_INSERT_FUNCTION(townSortAvlInsertPassed, TownSortAVL, TownAVL,
-                            (AVLCreateFunc) &townSortAvlCreate, (AVLCompareValueFunc) &townSortAVLComparePassed)
-AVL_DECLARE_INSERT_FUNCTION(townSortAvlInsertName, TownSortAVL, TownAVL,
-                            (AVLCreateFunc) &townSortAvlCreate, (AVLCompareValueFunc) &townSortAVLCompareName)
+static AVL_DECLARE_INSERT_FUNCTION(townSortAvlInsertPassed, TownSortAVL, TownAVL,
+                                   (AVLCreateFunc) &townSortAvlCreate, (AVLCompareValueFunc) &townSortAVLComparePassed)
 
-void sortTownsByPasses(TownAVL* townNode, TownSortAVL** sorted)
+static AVL_DECLARE_INSERT_FUNCTION(townSortAvlInsertName, TownSortAVL, TownAVL,
+                                   (AVLCreateFunc) &townSortAvlCreate, (AVLCompareValueFunc) &townSortAVLCompareName)
+
+static void sortTownsByPasses(TownAVL* townNode, TownSortAVL** sorted)
 {
     if (townNode == NULL)
     {
@@ -126,7 +123,7 @@ void sortTownsByPasses(TownAVL* townNode, TownSortAVL** sorted)
     sortTownsByPasses(townNode->right, sorted);
 }
 
-void createTop10(TownSortAVL* topTowns, int* n, TownSortAVL** sorted)
+static void createTop10(TownSortAVL* topTowns, int* n, TownSortAVL** sorted)
 {
     if (topTowns == NULL || *n >= 10)
     {
@@ -144,16 +141,16 @@ void createTop10(TownSortAVL* topTowns, int* n, TownSortAVL** sorted)
     createTop10(topTowns->left, n, sorted);
 }
 
-void printTowns(TownSortAVL* C)
+static void printTowns(TownSortAVL* t)
 {
-    if (C->left != NULL)
-        printTowns(C->left);
-    printf("%s;%d;%d\n", C->value->name, C->value->passed, C->value->firstTown);
-    if (C->right != NULL)
-        printTowns(C->right);
+    if (t->left != NULL)
+        printTowns(t->left);
+    printf("%s;%d;%d\n", t->value->name, t->value->passed, t->value->firstTown);
+    if (t->right != NULL)
+        printTowns(t->right);
 }
 
-void insertTown(TownAVL** towns, const RouteStep* step, const char* townName, bool townA)
+static void insertTown(TownAVL** towns, const RouteStep* step, const char* townName, bool townA)
 {
     TownAVL* townNode;
     *towns = townAVLInsert(*towns, townName, &townNode, NULL);
@@ -172,28 +169,28 @@ void insertTown(TownAVL** towns, const RouteStep* step, const char* townName, bo
     }
 }
 
-void freeAVLBasic(AVL* tree)
+static void freeAVLBasic(AVL* tree)
 {
     if (tree == NULL)
     {
         return;
     }
 
-    free(tree->left);
-    free(tree->right);
+    freeAVLBasic(tree->left);
+    freeAVLBasic(tree->right);
 
     free(tree);
 }
 
-void freeTownAVL(TownAVL* tree)
+static void freeTownAVL(TownAVL* tree)
 {
     if (tree == NULL)
     {
         return;
     }
 
-    free(tree->left);
-    free(tree->right);
+    freeTownAVL(tree->left);
+    freeTownAVL(tree->right);
 
     freeAVLBasic((AVL*) tree->routeIds);
     free(tree);

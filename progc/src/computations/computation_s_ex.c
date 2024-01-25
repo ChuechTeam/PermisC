@@ -14,7 +14,7 @@
 #include "mem_alloc.h"
 #include "partition.h"
 
-MemArena travelSortAVLMem;
+static MemArena travelSortAVLMem;
 
 typedef struct TravelEntry
 {
@@ -83,7 +83,7 @@ typedef struct TravelSortAVL
     float avg; // Copies the travel entry from the map.
 } TravelSortAVL;
 
-TravelSortAVL* travelSortAVLCreate(TravelEntry* travel)
+static TravelSortAVL* travelSortAVLCreate(TravelEntry* travel)
 {
     TravelSortAVL* tree = memAlloc(&travelSortAVLMem, sizeof(TravelSortAVL));
 
@@ -97,7 +97,7 @@ TravelSortAVL* travelSortAVLCreate(TravelEntry* travel)
     return tree;
 }
 
-int travelSortAVLCompare(TravelSortAVL* tree, TravelEntry* travel)
+static int travelSortAVLCompare(TravelSortAVL* tree, TravelEntry* travel)
 {
     float deltaMaxMin = tree->deltaMaxMin - (travel->max - travel->min);
     if (deltaMaxMin < 0)
@@ -114,7 +114,7 @@ int travelSortAVLCompare(TravelSortAVL* tree, TravelEntry* travel)
     }
 }
 
-AVL_DECLARE_INSERT_FUNCTION(travelSortAVLInsert, TravelSortAVL, TravelEntry,
+static AVL_DECLARE_INSERT_FUNCTION(travelSortAVLInsert, TravelSortAVL, TravelEntry,
                             (AVLCreateFunc) &travelSortAVLCreate, (AVLCompareValueFunc) &travelSortAVLCompare)
 
 // Find the element with the 50th highest max-min value.
@@ -137,7 +137,7 @@ static float findThresholdSortAVL(TravelSortAVL* tree, float top[50], int* i)
 }
 
 // Once we have accumulated all the distances, calculate all the average distances of the travels.
-void calcAvgAndSort(TravelMap* map, TravelSortAVL** sorted)
+static void calcAvgAndSort(TravelMap* map, TravelSortAVL** sorted)
 {
     uint32_t num = 0;
     float threshold = -1e18f;
@@ -166,7 +166,7 @@ void calcAvgAndSort(TravelMap* map, TravelSortAVL** sorted)
     }
 }
 
-void printTop50(TravelSortAVL* tr, int* n)
+static void printTop50(TravelSortAVL* tr, int* n)
 {
     if (tr == NULL || *n >= 50)
     {

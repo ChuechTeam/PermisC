@@ -22,9 +22,9 @@
 
 // The memory arenas used for each kind of structure.
 // Currently those are global variables, should these be passed to the create functions instead?
-MemArena townSortAVLMem; // Used to allocate TownSortAVL nodes.
-MemArena townNodeListMem; // Used to allocate the TownNodeList structures (only the ones we need to allocate).
-MemArena townStringsMem;
+static MemArena townSortAVLMem; // Used to allocate TownSortAVL nodes.
+static MemArena townNodeListMem; // Used to allocate the TownNodeList structures (only the ones we need to allocate).
+static MemArena townStringsMem; // Used to allocate all the strings for towns.
 
 // Can be changed to uint16_t for 2x more towns stored, but limits the total amount of towns to 65536.
 typedef uint32_t TownNodeId;
@@ -39,13 +39,13 @@ typedef struct TownNodeList
     TownNodeId nodes[TN_LIST_NUM];
 } TownNodeList;
 
-void tnListInit(TownNodeList* list)
+static void tnListInit(TownNodeList* list)
 {
     list->size = 0;
     list->next = NULL;
 }
 
-TownNodeList* tnListCreate()
+static TownNodeList* tnListCreate()
 {
     TownNodeList* list = memAlloc(&townNodeListMem, sizeof(TownNodeList));
     assert(list);
@@ -55,7 +55,7 @@ TownNodeList* tnListCreate()
     return list;
 }
 
-void tnListAdd(TownNodeList* list, TownNodeId id)
+static void tnListAdd(TownNodeList* list, TownNodeId id)
 {
     if (list->size == TN_LIST_NUM - 1)
     {
@@ -71,7 +71,7 @@ void tnListAdd(TownNodeList* list, TownNodeId id)
     }
 }
 
-bool tnListSearch(const TownNodeList* list, TownNodeId id)
+static bool tnListSearch(const TownNodeList* list, TownNodeId id)
 {
     for (uint32_t i = 0; i < list->size; ++i)
     {
@@ -240,13 +240,13 @@ typedef struct TownStatsArray
     uint32_t capacity;
 } TownStatsArray;
 
-void townStatsArrayInit(TownStatsArray* array)
+static void townStatsArrayInit(TownStatsArray* array)
 {
     array->capacity = 8192;
     array->elements = malloc(sizeof(TownStats) * array->capacity);
 }
 
-void townStatsArrayPut(TownStatsArray* array, TownNodeId index, const TownStats stats)
+static void townStatsArrayPut(TownStatsArray* array, TownNodeId index, const TownStats stats)
 {
     if (index >= array->capacity)
     {
@@ -267,7 +267,7 @@ typedef struct TownSortAVL
     TownStats stats;
 } TownSortAVL;
 
-TownSortAVL* townSortAVLCreate(TownStats* stats)
+static TownSortAVL* townSortAVLCreate(TownStats* stats)
 {
     TownSortAVL* tree = memAlloc(&townSortAVLMem, sizeof(TownSortAVL));
     // assert(tree);
@@ -278,7 +278,7 @@ TownSortAVL* townSortAVLCreate(TownStats* stats)
     return tree;
 }
 
-int townSortAVLComparePassed(TownSortAVL* tree, TownStats* entry)
+static int townSortAVLComparePassed(TownSortAVL* tree, TownStats* entry)
 {
     int cmp = tree->stats.passed - entry->passed;
     if (cmp != 0)
@@ -291,7 +291,7 @@ int townSortAVLComparePassed(TownSortAVL* tree, TownStats* entry)
     }
 }
 
-int townSortAVLCompareName(TownSortAVL* tree, TownStats* townNode)
+static int townSortAVLCompareName(TownSortAVL* tree, TownStats* townNode)
 {
     return strcmp(tree->stats.name, townNode->name);
 }
@@ -340,7 +340,7 @@ static inline void incrementTownPassed(RouteEntry* entry, TownStatsArray* statAr
     }
 }
 
-void sortTowns(TownStatsArray* stats, TownNodeId num, TownSortAVL** sorted)
+static void sortTowns(TownStatsArray* stats, TownNodeId num, TownSortAVL** sorted)
 {
     for (uint32_t i = 0; i < num; ++i)
     {
@@ -349,7 +349,7 @@ void sortTowns(TownStatsArray* stats, TownNodeId num, TownSortAVL** sorted)
     }
 }
 
-void extractTop10(TownSortAVL* sorted, TownSortAVL** top, int* n)
+static void extractTop10(TownSortAVL* sorted, TownSortAVL** top, int* n)
 {
     if (sorted == NULL || *n == 10)
     {
@@ -367,7 +367,7 @@ void extractTop10(TownSortAVL* sorted, TownSortAVL** top, int* n)
     extractTop10(sorted->left, top, n);
 }
 
-void printTop10(TownSortAVL* top)
+static void printTop10(TownSortAVL* top)
 {
     if (top == NULL)
     {

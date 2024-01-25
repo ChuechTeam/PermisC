@@ -7,6 +7,10 @@
  * Some functions to measure nanosecond time to do really basic profiling.
  */
 
+#include "compile_settings.h"
+
+#if ENABLE_PROFILER
+
 #include <stdint.h>
 #ifdef WIN32
 #include <windows.h>
@@ -42,11 +46,19 @@ static int64_t nanos()
     return ts.tv_sec * 1000000000 + ts.tv_nsec;
 #else
 #warning Profiling not supported!
- return 1;
+    return 1;
 #endif
 }
 
 #define PROFILER_START(name) int64_t pstart_ = nanos(); const char* pname_ = name;
 #define PROFILER_END() int64_t pend_ = nanos(); fprintf(stderr, "[PROFILER] %s: %lld µs\n", pname_, (long long)(pend_ - pstart_)/1000);
 
-#endif //PROFILE_H
+#else
+
+#define PROFILER_START(name)
+#define PROFILER_END()
+static void profilerInit() {}
+
+#endif
+
+#endif

@@ -66,7 +66,7 @@ Options :
   -A, --all                  Lancer tous les traitements
   -Q, --quick [n]            Utiliser des implémentations natives de calcul (au lieu de awk) plus rapides
                              pour tous les traitements, de plus en plus avancées selon le niveau choisi :
-                                 0 : Utiliser awk si possible
+                                 0 : Utiliser les implémentations de base en awk et C (AVL)
                                  1 : Utiliser les implémentations expérimentales en C (tables de hachage)
                                  2 : Utiliser les implémentations très expérimentales en C (SSE/AVX)
                              Un changement de niveau peut nécessiter une recompilation du programme.
@@ -74,9 +74,7 @@ Options :
       --excès-de-vitesse     ${ORANGE}${UL_ON}Attention${UL_OFF} : Cette option ajoute des propulseurs surpuissants à votre camion
                                          et vous expose à une amende pour excès de vitesse sur le
                                          périphérique nord de Rennes !!
-$RESET
-Variables d'environnement :
-  AWK : Le chemin vers l'exécutable awk. L'exécutable mawk est utilisé si possible."
+$RESET"
     exit 0
   fi
 done
@@ -239,6 +237,8 @@ export CLEAN=${CLEAN:-0}
 export EXPERIMENTAL_ALGO=${EXPERIMENTAL_ALGO:-$QL1}
 # Enable experimental AVX stuff for QUICK_LEVEL >= 2.
 export EXPERIMENTAL_ALGO_AVX=${EXPERIMENTAL_ALGO_AVX:-$QL2}
+# Disable the profiler by default.
+export ENABLE_PROFILER=${ENABLE_PROFILER:-0}
 
 # Compile the PermisC executable if one of these conditions is true:
 # - There's no executable
@@ -494,5 +494,9 @@ for comp in "${COMPUTATIONS[@]}"; do
   GRAPH=$(graph_out_file "$comp")
   COMP_NAME=$(comp_name "$comp")
   echo -n "➡ "
-  print_file_link "$GRAPH" "Ouvrir le graphique $COMP_NAME"
+  if [ $LIVING_DANGEROUSLY -eq 1 ]; then
+    print_file_link "$GRAPH" "Ouvrir IMMÉDIATEMENT le graphique $COMP_NAME"
+  else
+    print_file_link "$GRAPH" "Ouvrir le graphique $COMP_NAME"
+  fi
 done
