@@ -329,8 +329,8 @@ void computationD1(RouteStream* stream)
         PROFILER_START("Read partitions and count routes per driver");
 
         for (Partition* partition = partitioner.partitions;
-            partition != (partitioner.partitions + partitioner.numPartitions);
-            ++partition)
+             partition != (partitioner.partitions + partitioner.numPartitions);
+             ++partition)
         {
             PARTITION_ITERATE(&partitioner, partition, struct StepPart, p)
             {

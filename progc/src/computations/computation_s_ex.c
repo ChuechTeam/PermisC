@@ -115,7 +115,7 @@ static int travelSortAVLCompare(TravelSortAVL* tree, TravelEntry* travel)
 }
 
 static AVL_DECLARE_INSERT_FUNCTION(travelSortAVLInsert, TravelSortAVL, TravelEntry,
-                            (AVLCreateFunc) &travelSortAVLCreate, (AVLCompareValueFunc) &travelSortAVLCompare)
+                                   (AVLCreateFunc) &travelSortAVLCreate, (AVLCompareValueFunc) &travelSortAVLCompare)
 
 // Find the element with the 50th highest max-min value.
 // This will be used as a threshold to avoid inserting useless elements in the AVL tree
