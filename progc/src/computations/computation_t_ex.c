@@ -17,8 +17,16 @@
 
 /*
  * [EXPERIMENTAL!] Computation T implementation
- * Featuring: The experimental map structure, and the memory arena allocator!
+ * Featuring:
+ * - The experimental map structure!
+ * - The memory arena allocator!
+ * - The partitioner!
+ * - Weird linked lists of arrays!
  */
+
+// A high number of partition is better for this comptuation, as the RouteMapEntry
+// is very large.
+#define NUM_PARTITIONS 128
 
 // The memory arenas used for each kind of structure.
 // Currently those are global variables, should these be passed to the create functions instead?
@@ -112,6 +120,10 @@ typedef struct
 static inline uint32_t MAP_HASH_FUNC(const int* key, uint32_t capacityExponent)
 {
     uint32_t a = *(uint32_t*) key;
+    // We're reading partitioned routes that are distributed according to a modulo hash function.
+    // Dividing by the number of partitions preserves a unique number for each route, which leads
+    // to a better distribution. (and honestly i'm not entirely sure why it's so inefficient without...)
+    a /= NUM_PARTITIONS;
     a *= 2654435769U;
     return a >> (32 - capacityExponent);
 }
@@ -403,13 +415,14 @@ void computationT(RouteStream* stream)
     // Just tracks the current town id, and increments it for the next town we encounter.
     TownNodeId idCounter = 0;
 
-    routeMapInit(&routes, 8192, 0.25f); // Low load factor because we have low cardinality
+    // Start with a low capacity that grows as needed.
+    routeMapInit(&routes, 256, 0.75f);
     // A lower load factor is better for this map as strings are really just stored
     // in another memory region, and the key bottleneck is comparing strings; we must
     // then reduce the number of collisions as much as possible.
     townMapInit(&towns, 8192, 0.5f);
     // More partitions is efficent for this computation as the route map is very large.
-    partitionerInit(&partitioner, 128, 65536);
+    partitionerInit(&partitioner, NUM_PARTITIONS, 65536);
     townStatsArrayInit(&stats);
 
     {

@@ -7,7 +7,7 @@
  * Literally just searches the '\n' and ';' delimiters.
  * Sounds boring, but it's actually the major part of the parsing operation, which can take a lot of time!
  * Hence why this implementation is optimized using AVX or SSE instructions,
- * which can be chosen by configuring the DELIM_SEARCH_METHOD macro.
+ * which can be chosen by configuring the USE_AVX_DELIM_SEARCH macro.
  */
 
 #include <stdint.h>

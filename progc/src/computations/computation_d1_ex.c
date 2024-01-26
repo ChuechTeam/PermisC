@@ -15,6 +15,8 @@
 #include "partition.h"
 #include "avl.h"
 
+#define NUM_PARTITIONS 64
+
 static MemArena driverStringListMem;
 static MemArena driverSortAVLMem;
 static MemArena driverStringsMem;
@@ -90,6 +92,10 @@ typedef struct
 static inline uint32_t MAP_HASH_FUNC(const void* key, uint32_t capacityExponent)
 {
     uint32_t a = *(uint32_t*) key;
+    // We're reading partitioned routes that are distributed according to a modulo hash function.
+    // Dividing by the number of partitions preserves a unique number for each route, which leads
+    // to a better distribution. (and honestly i'm not entirely sure why it's so inefficient without...)
+    a /= NUM_PARTITIONS;
     a *= 2654435769U;
     return a >> (32 - capacityExponent);
 }
@@ -282,12 +288,12 @@ void computationD1(RouteStream* stream)
     // It's really just a function:
     //     f(routeId) -> [driverName1, driverName2, ...]
     RouteMap routes;
-    routeMapInit(&routes, 8192, 0.25f); // Use 8192 as we do partitioning
+    routeMapInit(&routes, 8192, 0.75f); // Use 8192 as we do partitioning
 
     // Splits all the route steps into multiple buckets for better
     // cache locality.
     Partitioner partitioner;
-    partitionerInit(&partitioner, 64, 66536);
+    partitionerInit(&partitioner, NUM_PARTITIONS, 66536);
 
     struct StepPart
     {

@@ -70,6 +70,7 @@ Différentes variables sont configurables pour personnaliser la compilation :
 - `EXPERIMENTAL_ALGO_AVX` : active les algorithmes expérimentaux utilsant AVX si mis à 1 
 (0 par défaut, nécessite `OPTIMIZE_NATIVE` et un processeur capable d'utiliser AVX)
 - `ASM` : génère le code assembleur du programme si mis à 1 (0 par défaut)
+- `ENABLE_PROFILER` : active le profilage des traitements (1 par défaut)
 
 Pour configurer ces variables, il suffit de les définir avant de lancer la commande `make`.
 Par exemple, `OPTIMIZE=1 ASM=1 make -j build`.
