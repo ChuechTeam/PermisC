@@ -272,12 +272,12 @@ static void printTop10Drivers(const DriverSortAVL* node, int* n);
 void computationD1(RouteStream* stream)
 {
     memInit(&driverStringListMem, 256 * 1024);
-    memInit(&driverStringsMem, 256 * 1024);
     memInit(&driverSortAVLMem, 256 * 1024);
+    memInitEx(&driverStringsMem, 256 * 1024, 1);
 
     // The map containing all drivers by their name, with the number of routes they have taken.
     //
-    // You can think of it as a dictionary, or a function/map:
+    // It's really just a function:
     //    f(driverName) -> routeCount
     DriverMap drivers;
     driverMapInit(&drivers, 4096, 0.75f);
